@@ -2,7 +2,6 @@
 #include <SD.h>
 
 File sdFile;
-int cur = 0;
 
 void setup() {
     Serial.begin(9600);

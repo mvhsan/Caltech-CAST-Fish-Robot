@@ -37,7 +37,7 @@ void setup() {
   Serial.println("initialization done.");
   
   //Open file on SD for writing
-  SD.remove("test.txt");
+  //SD.remove("test.txt");
   sdFile = SD.open("test.txt", FILE_WRITE);
 
   //If file cannot be opened:

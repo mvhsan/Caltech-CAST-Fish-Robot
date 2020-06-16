@@ -26,10 +26,12 @@ void setup() {
      }
 
      Serial.println("Writing...");
+     sdFile.print("Test 123");
+     sdFile.print("test 321");
 
   sdFile.close();
 }
 
 void loop() {
-    sdFile.print(Serial.read());
+    //sdFile.print(Serial.read());
 }

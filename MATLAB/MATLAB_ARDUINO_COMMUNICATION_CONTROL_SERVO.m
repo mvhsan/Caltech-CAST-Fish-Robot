@@ -5,7 +5,7 @@
 delete(instrfindall)
 
 %------------- Setup Connection with Motor Control Arduino ----------------
-serialPort = 'COM6';    % define COM port #
+serialPort = 'COM3';    % define COM port #
 s = serial(serialPort); % create the serial communication
 s.Baudrate = 9600; %set the baudrate (same as the arduino one)
 fopen(s); %open the communication
@@ -20,7 +20,7 @@ dat = fscanf(s,'%s');
 %%
 %for loop : sending the datas as a string to arduino 
 %position = phi, theta, psi 
-while(1)
+%while(1)
     for curVector = 1:1:vectorSizes(1)
         %but because the position loop isn't done for the moment, the first
         %value angles_8(i, 1) must be a pwm between 1000 and 2000 (if you don't 
@@ -44,7 +44,8 @@ while(1)
         dat = fscanf(s,'%s')
 
     end
-end
+    fprintf(s, '%s', "!");
+%end
 
 delete(instrfindall)
 

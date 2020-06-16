@@ -3,10 +3,8 @@
  * tylernguyen@caltech.edu
  * Communicates with MATLAB over Serial in order to receive trajectory coordinates on Arduino.
  * Run ArduinoCode first, then run MATLAB. Will run until it has received the entire trajectory.
- * Writes to EEPROM
  */
 
-#include <EEPROM.h>
 #include <string.h>
 #include <CONTROL.h> //import control library : library homemade that contains all the functions to control the different servos
 
@@ -23,17 +21,16 @@ char recvChars[4][numChars]; //Stores the current vector values. (timestep,phi,t
 boolean running = true;
 boolean newData = false;
 
-long addr = 0; //Current EEPROM address available
-
-  CONTROL control(5, 6, 9, 10, 11, 1);/*constructor of the object Control -> the 5 first numbers are for the number of 
+CONTROL control(5, 6, 9, 10, 11, 1);/*constructor of the object Control -> the 5 first numbers are for the number of 
 the pins 5,6 for right,left, 9,10 for up, down and 11 for continuous servo*/
 
 void setup() {
     Serial.begin(9600);
     Serial.setTimeout(100);
 
-    //Set number of trajectory positions to expect from MATLAB
     while(Serial.available() == 0);
+
+    //Set number of trajectory positions to expect from MATLAB
     numPos = Serial.readStringUntil('\n').toInt();
     
     Serial.print("Num vectors that ARDUINO expects: ");
@@ -64,8 +61,8 @@ void initControl(){
 
 void runData(){
 
-  int upDownMS = map(upDownAngle, 0, 180, 1000, 2000);
-  int leftRightMS = map(leftRightAngle, 0, 180, 1000, 2000);
+  float upDownMS = map(upDownAngle, 0, 180, 1000, 2000);
+  float leftRightMS = map(leftRightAngle, 0, 180, 1000, 2000);
   control.controlUpDown(upDownMS);
   control.controlLeftRight(leftRightMS);
 }
@@ -133,32 +130,4 @@ void returnData(){
     Serial.print(upDownAngle);
     Serial.print("|LR:");
     Serial.println(leftRightAngle);
-}
-
-void writeIntToEEPROM(int value){
-  byte second = (value & 0xFF);
-  byte first = ((value >> 8) & 0xFF);
-
-  EEPROM.update(addr, second);
-  EEPROM.update(addr + 1, first);
-  addr += 2;
-}
-
-void writeVectorToEEPROM(){
-    if (addr > 1000){
-      Serial.print("EXCEEDED EEPROM SPACE");
-      running = false;
-      Serial.end();
-      return;
-    }
-
-    //Write to EEPROM:
-    EEPROM.put(addr, timestep);
-    addr += sizeof(float);
-    EEPROM.put(addr, pwmRotation);
-    addr += sizeof(float);
-    EEPROM.put(addr, upDownAngle);
-    addr += sizeof(float);
-    EEPROM.put(addr, leftRightAngle);
-    addr += sizeof(float);
 }
