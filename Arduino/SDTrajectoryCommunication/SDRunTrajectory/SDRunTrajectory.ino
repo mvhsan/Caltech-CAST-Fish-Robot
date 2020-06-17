@@ -31,6 +31,7 @@ void setup() {
   //Serial initialization
   Serial.begin(9600);
   Serial.setTimeout(100);
+  Serial.println("Press ENTER to begin: ");
   while (Serial.available() == 0); // Wait for Serial connection to connect (USB)
 
   //Initialize SD card

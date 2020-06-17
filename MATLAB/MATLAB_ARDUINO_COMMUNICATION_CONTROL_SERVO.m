@@ -14,9 +14,17 @@ pause(3);
 
 vectorSizes = size(vectors);
 
-%fprintf(s, '%s', num2str(vectorSizes(1)));  % send number number of position points
-dat = fscanf(s,'%s');
-
+serialdata = fscanf(s, '%s');
+while (true)
+    if (serialdata == ">>>") %Arduino requires input
+        userinput = input('Overwrite? (Y/N): ', 's');
+        fprintf(s, '%s', userinput);
+    end
+    if (serialdata == "<<<") %Arduino is ready for data transmission
+        break;
+    end
+    serialdata = fscanf(s, '%s')
+end
 %%
 %for loop : sending the datas as a string to arduino 
 %position = phi, theta, psi 
