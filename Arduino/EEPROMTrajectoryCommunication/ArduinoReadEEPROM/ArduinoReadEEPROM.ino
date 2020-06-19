@@ -1,4 +1,4 @@
- #include <EEPROM.h>
+250 #include <EEPROM.h>
 
 long EEPROMAddr = 0; //Current EEPROM Address
 int curVector = 1;
@@ -8,7 +8,7 @@ boolean running;
 float f = 0.00f; //Stores data read from EEPROM
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(250000);
   running = true;
 
   numVectors = readInt(); // Retrieve the total number of vectors stored in EEPROM

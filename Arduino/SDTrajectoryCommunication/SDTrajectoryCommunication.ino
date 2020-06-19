@@ -27,7 +27,7 @@ String receivedVector = "";
 
 void setup() {    
   //Begin serial communication
-  Serial.begin(9600);
+  Serial.begin(250000);
   Serial.setTimeout(100);
 
   // Wait for serial port to connect

@@ -25,7 +25,7 @@ CONTROL control(5, 6, 9, 10, 11, 1);/*constructor of the object Control -> the 5
 the pins 5,6 for right,left, 9,10 for up, down and 11 for continuous servo*/
 
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(250000);
     Serial.setTimeout(100);
 
     while(Serial.available() == 0);

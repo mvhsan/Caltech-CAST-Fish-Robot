@@ -25,8 +25,8 @@
 
 %reading the datas from the csv file
 
-datas = csvread("trajectorydata/SampleTrajectory_ColumnATime_ColumnsBtoDTaitBryanAngles.csv");
-%datas = csvread("trajectorydata/Gen_0_C_1_MaxAng_25_ThkAng_0_RotAng_0_RotInt_0_SpdCde_0_Spdupv_1_Kv_0_hdev_0_freq_0.19_TB.csv");
+%datas = csvread("trajectorydata/SampleTrajectory_ColumnATime_ColumnsBtoDTaitBryanAngles.csv");
+datas = csvread("trajectorydata/Gen_0_C_1_MaxAng_25_ThkAng_0_RotAng_0_RotInt_0_SpdCde_0_Spdupv_1_Kv_0_hdev_0_freq_0.19_TB.csv");
 
 t = datas(:, 1);
 phi_datas = datas(:, 2);

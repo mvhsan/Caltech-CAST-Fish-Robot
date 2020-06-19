@@ -25,7 +25,7 @@ boolean newData = false;
 long addr = 0; //Current EEPROM address available
 
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(250000);
     Serial.setTimeout(100);
 
     //Set number of trajectory positions to expect from MATLAB
