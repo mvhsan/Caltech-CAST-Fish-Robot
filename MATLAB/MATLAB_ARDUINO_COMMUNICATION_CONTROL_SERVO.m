@@ -7,7 +7,7 @@ delete(instrfindall)
 %------------- Setup Connection with Motor Control Arduino ----------------
 serialPort = 'COM3';    % define COM port #
 s = serial(serialPort); % create the serial communication
-s.Baudrate = 9600; %set the baudrate (same as the arduino one)
+s.Baudrate = 250000; %set the baudrate (same as the arduino one)
 fopen(s); %open the communication
 
 pause(3);

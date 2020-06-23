@@ -7,7 +7,7 @@
 #include <string.h>
 #include <SPI.h>
 #include <SD.h>
-#include <CONTROL.h> //import control library : library homemade that contains all the functions to control the different servos
+#include <Servo.h>
 
 File sdFile;
 
@@ -15,6 +15,11 @@ File sdFile;
 const byte numChars = 16; //Max num chars to expect when reading from serial for each value
 char recvChars[4][numChars]; //Stores the current vector values. (timestep,phi,theta,psi)
 
+//Servos
+Servo L;
+Servo R;
+Servo U;
+Servo D;
 
 //initialization of the different angles. Will change
 float pwmRotation = 90;
@@ -22,12 +27,11 @@ float upDownAngle = 90;
 float leftRightAngle = 90;
 float timestep = 0;
 
+int lastUDMicroseconds = 0;
+int lastLRMicroseconds = 0;
 
-int timesToRun = 2; //Stores the number of times to run trajectory. 1-indexed.
+int timesToRun = 5; //Stores the number of times to run trajectory. 1-indexed.
 boolean firstTime = true; //Flag whether this is the first time that trajectory has run (important for the first vector timing)
-
-CONTROL control(5, 6, 9, 10, 11, 1);/*constructor of the object Control -> the 5 first numbers are for the number of
-  the pins 5,6 for right,left, 9,10 for up, down and 11 for continuous servo*/
 
 
 //Characters that define vector
@@ -56,14 +60,14 @@ void setup() {
   //Serial initialization
   Serial.begin(250000);
   Serial.setTimeout(100);
-  Serial.println("Press ENTER to begin: ");
-  while (Serial.available() == 0); // Wait for Serial connection to connect (USB)
 
+  //Wait for user input to begin
+  Serial.println("Press ENTER to begin: ");
+  while (Serial.available() == 0); 
+  
   //Initialize SD card
   pinMode(53, OUTPUT);
-
   Serial.print("Initializing SD card...");
-
   if (!SD.begin(10)) {
     Serial.println("initialization failed!");
     while (1);
@@ -79,8 +83,11 @@ void setup() {
     while (1);
   }
 
-  control.init();   //Initialize servos
-
+  //Attach servos. Note: Pin 10 was acting strangely, and the servo was being sent false signals. Try to avoid using it in the future.
+  R.attach(9); 
+  L.attach(8);  
+  U.attach(6);
+  D.attach(5);
 
   Serial.print("Starting trajectory... Initialization took: ");
   Serial.print((millis() - startTime) / 1000);
@@ -90,51 +97,65 @@ void setup() {
 
 
 void loop() {
-
+  //Run the trajectory 'timesToRun' number of times
   while (timesToRun > 0){
-    //Seek to beginning of file
+    //Seek to beginning of SD file
     sdFile.seek(0);
+    
     //Reset timestep
     timestep = 0;
-    //Set the start time for trajectory to keep pace with
+    
+    //Mark the starting time on the Arduino for the trajectory to keep pace with
     startTime = millis();
 
     while (sdFile.available()) {
-      //Receive new character from SD card
+      //If a full vector has not been read yet, receive more characters from SD card, otherwise parse the data
       if (!newdata) {
         receiveChar();
         continue;
       } else if (!parsed){
-          //Parse data into floats
+          //Parse the character data into floats if it hasn't been parsed yet
           timestep = atof(recvChars[0]);
           pwmRotation = atof(recvChars[1]);
           upDownAngle = atof(recvChars[2]);
           leftRightAngle = atof(recvChars[3]);
       } 
+
+      //If it is the correct time to run the vector, send it to the Arduino
       if ((millis() - startTime) >= timestep * 1000) {
-          //Command servos
-          float upDownMS = map(upDownAngle, 0, 180, 1000, 2000);
-          float leftRightMS = map(leftRightAngle, 0, 180, 1000, 2000);
-          control.controlUpDown(upDownMS);
-          control.controlLeftRight(leftRightMS);
+          //Convert the angle into MS for the servo signal
+          int upDownMS = (round) (upDownAngle/180*1000+1000);
+          int leftRightMS = (round) (leftRightAngle/180*1000+1000);
 
-          Serial.print(millis()-startTime);Serial.print(" ");Serial.print(timestep*1000, 8);Serial.print(" ");Serial.print(upDownAngle,8);Serial.print(" ");Serial.println(leftRightAngle,8);
-          
-          
+          //If angle has changed, send it to servos. Otherwise, there's no need to send it again
+          if (upDownMS != lastUDMicroseconds){
+            U.writeMicroseconds(upDownMS);
+            D.writeMicroseconds(3000 - upDownMS);
+            lastUDMicroseconds = upDownMS; 
+          }
 
-          //Serial.print("step ");
-          //Serial.println(timestep);
-          //Serial.print("pace ");
-          //Serial.println((millis() - startTime) / 1000.0);
+          if (leftRightMS != lastLRMicroseconds){
+            L.writeMicroseconds(leftRightMS);
+            R.writeMicroseconds(2940 - leftRightMS); //
+            lastLRMicroseconds = leftRightMS;
+          }
+
+          Serial.print(millis()-startTime);Serial.print(" ");Serial.print(timestep*1000, 8);
+          Serial.print(" ");Serial.print(upDownMS);Serial.print(" ");Serial.print(3000 - upDownMS);
+          Serial.print(" ");Serial.print(leftRightMS);Serial.print(" ");Serial.println(2940 - leftRightMS);
+
+          //Mark that the next vector is ready to be received from SD
           newdata = false;
         }
       }
       timesToRun--;
     }
-  //No longer running trajectory. Close SD file
+    
+    //No longer running trajectory. Close SD file and stop program
     sdFile.close();
     Serial.println("Done!");
     Serial.end();
+    while (1);
   
 }
 
