@@ -164,7 +164,16 @@ typedef struct {
 
 uint8_t SBGC_cmd_realtime_data_unpack(SBGC_cmd_realtime_data_t &p, SerialCommand &cmd);
 
+// SBGC_CMD_GET_ANGLES
+typedef struct {
+	struct {
+		int16_t imu_data;
+		int16_t target_angle;
+		int16_t target_speed;
+	} sensor_data[3];  // ACC and Gyro sensor data (with calibration) for current IMU (see cur_imu field)
+} SBGC_cmd_angles_data_t;
 
+uint8_t SBGC_cmd_angles_data_unpack(SBGC_cmd_angles_data_t &p, SerialCommand &cmd);
 
 inline uint8_t SBGC_cmd_execute_menu_send(uint8_t menu_action, SBGC_Parser &parser) {
 	SerialCommand cmd;

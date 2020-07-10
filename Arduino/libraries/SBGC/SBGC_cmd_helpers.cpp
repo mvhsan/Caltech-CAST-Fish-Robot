@@ -194,4 +194,10 @@ uint8_t SBGC_cmd_realtime_data_unpack(SBGC_cmd_realtime_data_t &p, SerialCommand
 	#endif
 }
 
-
+uint8_t SBGC_cmd_angles_data_unpack(SBGC_cmd_angles_data_t &p, SerialCommand &cmd){
+    for(uint8_t i=0; i<3; i++) {
+        p.sensor_data[i].imu_data = cmd.readWord();
+        p.sensor_data[i].target_angle = cmd.readWord();
+        p.sensor_data[i].target_speed = cmd.readWord();
+    }
+}

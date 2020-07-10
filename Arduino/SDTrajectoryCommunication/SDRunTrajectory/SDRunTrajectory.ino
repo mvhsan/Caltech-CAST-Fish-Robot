@@ -20,10 +20,7 @@ const byte numChars = 16; //Max num chars to expect when reading from serial for
 char recvChars[4][numChars]; //Stores the current vector values. (timestep,phi,theta,psi)
 
 //Servos
-Servo L;
-Servo R;
-Servo U;
-Servo D;
+Servo L, R, U, D;
 
 //initialization of the different angles. Will change
 float pwmRotation = 90;
@@ -62,21 +59,21 @@ boolean newdata = false;
 //Flag whether vector has been parsed
 boolean parsed = false;
 
-SerialCommand inCmd;
-SerialCommand outCmd;
+//Data to send (outCmd) and that are received (inCmd) to/from SBGC
+SerialCommand inCmd, outCmd;
 
-SBGC_cmd_realtime_data_t curRTData;
+SBGC_cmd_angles_data_t curAngleData;
 
 
 void setup() {
-  //Serial initialization
+  //Serial initialization for USB
   Serial.begin(250000);
-  Serial.setTimeout(100);
 
+  //Serial and cmd initialization for SBGC communicatiom
   Serial1.begin(115200);
   SBGC_Demo_setup(&Serial1);
-  outCmd.init(SBGC_CMD_REALTIME_DATA_3);
-  sbgc_parser.send_cmd(outCmd, 0);
+  outCmd.init(SBGC_CMD_GET_ANGLES);
+  //sbgc_parser.send_cmd(outCmd, 0);
 
 
   //Wait for user input to begin
@@ -107,6 +104,7 @@ void setup() {
   U.attach(6);
   D.attach(5);
 
+
   Serial.print("Starting trajectory... Initialization took: ");
   Serial.print((millis() - startTime) / 1000);
   Serial.println("seconds.");
@@ -115,82 +113,106 @@ void setup() {
 
 
 void loop() {
+
+
+
   //Run the trajectory 'timesToRun' number of times
-  while (timesToRun > 0) {
-    //Seek to beginning of SD file
-    sdFile.seek(0);
+  if (timesToRun > 0) {
 
-    //Reset timestep
-    timestep = 0;
+    //If running the trajectory starting with the vector, we must go to the beginning of the trajectory
+    if (firstTime) {
+      //Seek to beginning of SD file
+      sdFile.seek(0);
 
-    //Mark the starting time on the Arduino for the trajectory to keep pace with
-    startTime = millis();
+      //Reset timestep
+      timestep = 0;
 
-    while (sdFile.available()) {
+      //Mark the starting time on the Arduino for the trajectory to keep pace with
+      startTime = millis();
+
+      firstTime = false;
+    }
+
+    if (sdFile.available()) {
 
       //If a full vector has not been read yet, receive more characters from SD card, otherwise parse the data
       if (!newdata) {
         receiveChar();
-        continue;
+        return;
       } else if (!parsed) {
         //Parse the character data into floats if it hasn't been parsed yet
         timestep = atof(recvChars[0]);
         pwmRotation = atof(recvChars[1]);
         upDownAngle = atof(recvChars[2]);
         leftRightAngle = atof(recvChars[3]);
-      }
-
-      //If it is the correct time to run the vector, send it to the Arduino
-      if ((millis() - startTime) >= timestep * 1000) {
-        //Convert the angle into MS for the servo signal
-        int upDownMS = (round) (upDownAngle / 180 * 1000 + 1000);
-        int leftRightMS = (round) (leftRightAngle / 180 * 1000 + 1000);
-
-        //If desired angle has changed, send it to servos. Otherwise, there's no need to send it again
-        if (upDownMS != lastUDMicroseconds) {
-          U.writeMicroseconds(upDownMS);
-          D.writeMicroseconds(3000 - upDownMS);
-          lastUDMicroseconds = upDownMS;
-        }
-
-        if (leftRightMS != lastLRMicroseconds) {
-          L.writeMicroseconds(leftRightMS);
-          R.writeMicroseconds(2940 - leftRightMS); //
-          lastLRMicroseconds = leftRightMS;
-        }
-
-
-
-
-
-        Serial.print(millis() - startTime); Serial.print(" "); Serial.print(timestep * 1000, 8);
-        Serial.print(" "); Serial.print(upDownMS); Serial.print(" "); Serial.print(3000 - upDownMS);
-        Serial.print(" "); Serial.print(leftRightMS); Serial.print(" "); Serial.println(2940 - leftRightMS);
-
-        sbgc_parser.send_cmd(outCmd, 0);
-
-
-        if (sbgc_parser.read_cmd()) {
-          //Receive incoming data
-          inCmd = sbgc_parser.in_cmd;
-          //Unpacks the incoming data into curRTData
-          SBGC_cmd_realtime_data_unpack(curRTData, inCmd);
-        }
-
-        Serial.println(curRTData.imu_angle[0]);
-
-        //Mark that the next vector is ready to be received from SD
-        newdata = false;
+        parsed = true;
       }
     }
-    timesToRun--;
+
+
+
+    //If it is the correct time to run the vector, send it to the Arduino
+    if (((millis() - startTime) >= timestep * 1000)) {
+      //Convert the angle into MS for the servo signal
+      int upDownMS = (round) (upDownAngle / 180 * 1000 + 1000);
+      int leftRightMS = (round) (leftRightAngle / 180 * 1000 + 1000);
+
+              sbgc_parser.send_cmd(outCmd, 0);
+      
+      if (sbgc_parser.read_cmd()) {
+        //Receive incoming data
+        inCmd = sbgc_parser.in_cmd;
+        //Unpacks the incoming data into curAngleData
+        SBGC_cmd_angles_data_unpack(curAngleData, inCmd);
+      }
+
+
+      //If desired angle has changed, send it to servos. Otherwise, there's no need to send it again
+      if (upDownMS != lastUDMicroseconds) {
+        U.writeMicroseconds(upDownMS);
+        D.writeMicroseconds(3000 - upDownMS);
+        lastUDMicroseconds = upDownMS;
+      }
+
+      if (leftRightMS != lastLRMicroseconds) {
+        L.writeMicroseconds(leftRightMS);
+        R.writeMicroseconds(2940 - leftRightMS);
+        lastLRMicroseconds = leftRightMS;
+      }
+
+
+
+      Serial.print(millis() - startTime); Serial.print(" ");
+
+      Serial.print(SBGC_ANGLE_TO_DEGREE(curAngleData.sensor_data[1].imu_data)); Serial.print(" ");
+
+      Serial.print(timestep * 1000, 8); Serial.print(" ");
+      Serial.print(upDownMS); Serial.print(" "); Serial.print(3000 - upDownMS);
+      Serial.print(" "); Serial.print(leftRightMS); Serial.print(" "); Serial.println(2940 - leftRightMS);
+
+
+
+      //Mark that the next vector is ready to be received from SD
+      newdata = false;
+      parsed = false;
+    }
+
+
+
+    if (!sdFile.available()) {
+      timesToRun--;
+      firstTime = true;
+      return;
+    }
+
+  } else {
+    //No longer running trajectory. Close SD file and stop program
+    sdFile.close();
+    Serial.println("Done!");
+    Serial.end();
+    while (1);
   }
 
-  //No longer running trajectory. Close SD file and stop program
-  sdFile.close();
-  Serial.println("Done!");
-  Serial.end();
-  while (1);
 
 }
 
