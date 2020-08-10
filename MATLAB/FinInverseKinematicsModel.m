@@ -111,7 +111,7 @@ LLinkageJoint.JointAxis = [0 1 0];
 LLinkage.Joint = LLinkageJoint;
 
 RLinkage = robotics.RigidBody('RLinkage');
-RLinkageJoint = robotics.Joint('RLinkageJoint', 'revolute');
+RLinkageJoint = robotics.Joint('RLinkageJoint', 'fixed');
 setFixedTransform(RLinkageJoint,trvec2tform([linkageLength 0 0]));
 RLinkage.Joint = RLinkageJoint;
 
@@ -123,7 +123,7 @@ ULinkageJoint.JointAxis = [1 0 0];
 ULinkage.Joint = ULinkageJoint;
 
 DLinkage = robotics.RigidBody('DLinkage');
-DLinkageJoint = robotics.Joint('DLinkageJoint', 'revolute');
+DLinkageJoint = robotics.Joint('DLinkageJoint', 'fixed');
 setFixedTransform(DLinkageJoint,trvec2tform([0 linkageLength 0]));
 DLinkage.Joint = DLinkageJoint;
 
@@ -132,7 +132,7 @@ addBody(robot,RLinkage, 'RServoArm');
 addBody(robot,ULinkage, 'UServoArm');
 addBody(robot,DLinkage, 'DServoArm');
 %% 
-%Add second revolute joints as the "ball and socket"
+%Add secondary-axis revolute joints as the "ball and socket"
 % Left ball and socket
 LBallAndSocket = robotics.RigidBody('LBallAndSocket');
 LBallAndSocketJoint = robotics.Joint('LBallAndSocketJoint', 'revolute');
@@ -141,12 +141,6 @@ setFixedTransform(LBallAndSocketJoint,trvec2tform([0 0 0]));
 LBallAndSocketJoint.JointAxis = [1 0 0];
 LBallAndSocket.Joint = LBallAndSocketJoint;
 
-RBallAndSocket = robotics.RigidBody('RBallAndSocket');
-RBallAndSocketJoint = robotics.Joint('RBallAndSocketJoint', 'revolute');
-setFixedTransform(RBallAndSocketJoint,trvec2tform([0 0 0]));
-RBallAndSocketJoint.JointAxis = [1 0 0];
-RBallAndSocket.Joint = RBallAndSocketJoint;
-
 UBallAndSocket = robotics.RigidBody('UBallAndSocket');
 UBallAndSocketJoint = robotics.Joint('UBallAndSocketJoint', 'revolute');
 UBallAndSocketJoint.HomePosition = pi/4;
@@ -154,17 +148,28 @@ setFixedTransform(UBallAndSocketJoint,trvec2tform([0 0 0]));
 UBallAndSocketJoint.JointAxis = [0 1 0];
 UBallAndSocket.Joint = UBallAndSocketJoint;
 
-DBallAndSocket = robotics.RigidBody('DBallAndSocket');
-DBallAndSocketJoint = robotics.Joint('DBallAndSocketJoint', 'revolute');
-setFixedTransform(DBallAndSocketJoint,trvec2tform([0 0 0]));
-DBallAndSocketJoint.JointAxis = [0 1 0];
-DBallAndSocket.Joint = DBallAndSocketJoint;
 
 addBody(robot,LBallAndSocket, 'LLinkage');
-addBody(robot,RBallAndSocket, 'RLinkage');
 addBody(robot,UBallAndSocket, 'ULinkage');
-addBody(robot,DBallAndSocket, 'DLinkage');
 
+%Add third yaw revolute joints as the "ball and socket yaw"
+LBallAndSocketYaw = robotics.RigidBody('LBallAndSocketYaw');
+LBallAndSocketYawJoint = robotics.Joint('LBallAndSocketYawJoint', 'revolute');
+LBallAndSocketYawJoint.HomePosition = pi/4;
+setFixedTransform(LBallAndSocketYawJoint,trvec2tform([0 0 0]));
+LBallAndSocketYawJoint.JointAxis = [0 0 1];
+LBallAndSocketYaw.Joint = LBallAndSocketYawJoint;
+
+UBallAndSocketYaw = robotics.RigidBody('UBallAndSocketYaw');
+UBallAndSocketYawJoint = robotics.Joint('UBallAndSocketYawJoint', 'revolute');
+UBallAndSocketYawJoint.HomePosition = pi/4;
+setFixedTransform(UBallAndSocketYawJoint,trvec2tform([0 0 0]));
+UBallAndSocketYawJoint.JointAxis = [0 0 1];
+UBallAndSocketYaw.Joint = UBallAndSocketYawJoint;
+
+
+addBody(robot,LBallAndSocketYaw, 'LBallAndSocket');
+addBody(robot,UBallAndSocketYaw, 'UBallAndSocket');
 %% 
 %End effector
 
@@ -179,8 +184,8 @@ setFixedTransform(UEndEffectorJoint,trvec2tform([0 swashPlateLength/2 0]));
 UEndEffector.Joint = UEndEffectorJoint;
 
 
-addBody(robot,LEndEffector, 'LBallAndSocket');
-addBody(robot,UEndEffector, 'UBallAndSocket');
+addBody(robot,LEndEffector, 'LBallAndSocketYaw');
+addBody(robot,UEndEffector, 'UBallAndSocketYaw');
 
 %End effector
 
@@ -196,12 +201,12 @@ UEndEffector2.Joint = UEndEffectorJoint2;
 
 endEffector = robotics.RigidBody('endEffector');
 endEffectorJoint = robotics.Joint('endEffectorJoint', 'fixed');
-setFixedTransform(endEffectorJoint,trvec2tform([0 0 4]));
+setFixedTransform(endEffectorJoint,trvec2tform([0 0 3]));
 endEffector.Joint = endEffectorJoint;
 
 UDEndEffector = robotics.RigidBody('UDEndEffector');
 UDEndEffectorJoint = robotics.Joint('UDEndEffectorJoint', 'fixed');
-setFixedTransform(UDEndEffectorJoint,trvec2tform([0 0 -4]));
+setFixedTransform(UDEndEffectorJoint,trvec2tform([0 0 -3]));
 UDEndEffector.Joint = UDEndEffectorJoint;
 
 addBody(robot,LEndEffector2, 'LEndEffector');
@@ -256,22 +261,23 @@ positionTargetUD.TargetPosition = [0 0 0];
 positionTargetUD.Weights = 50;
 positionTargetUD.PositionTolerance = positionTolerance;
 
-finOrientation = robotics.OrientationTarget('endEffector');
-finOrientation.OrientationTolerance = deg2rad(0);
-finOrientation.TargetOrientation = eul2quat([deg2rad(0) deg2rad(15) deg2rad(0)]);
-finOrientation.Weights = 50;
-
 positionTargetEndEffectors = robotics.PositionTarget('UDEndEffector','ReferenceBody','endEffector');
 positionTargetEndEffectors.TargetPosition = [0 0 0];
 positionTargetEndEffectors.Weights = 25;
 positionTargetEndEffectors.PositionTolerance = positionTolerance;
 
-% UDFinOrientation = robotics.OrientationTarget('UDEndEffector');
-% UDFinOrientation.OrientationTolerance = deg2rad(0);
-% UDFinOrientation.TargetOrientation = eul2quat([deg2rad(0) deg2rad(0) deg2rad(0)]);
+finOrientation = robotics.OrientationTarget('endEffector');
+finOrientation.OrientationTolerance = deg2rad(0);
+finOrientation.Weights = 50;
 
+iniGuess = [0.0630393136777788;0.0630400171487887;0.0630382799224363;0.0630378418430514;1.38218075848645;1.75941103621286;1.75941320812916;1.38217981926081;1.31914145102465;1.31914099759299;1.50379994457534e-08;-3.06484264313506e-07;2.32693969055182e-09;3.06375857311355e-07];
 
-iniGuess = homeConfiguration(robot);
+%% 
+%Solve Inverse Kinematics for Single Point
+roll = 20;
+pitch = 10;
+yaw = 0;
+finOrientation.TargetOrientation = eul2quat([deg2rad(yaw) deg2rad(roll) deg2rad(pitch)]);
 [solutions, solutionInfo] = gik(iniGuess, positionTargetLM, positionTargetLR, positionTargetUM, positionTargetUD, finOrientation, positionTargetEndEffectors);
 
 ViolationLM = solutionInfo.ConstraintViolations(1).Violation;
@@ -281,9 +287,50 @@ ViolationUD = solutionInfo.ConstraintViolations(4).Violation;
 ViolationLRFinOrientation = solutionInfo.ConstraintViolations(5).Violation;
 ViolationUDFinOrientation = solutionInfo.ConstraintViolations(6).Violation;
 
-% show(robot,homeConfiguration(robot));
-% title('Home Configuration');
-% view([0 -1 0]);
-show(robot,solutions);
-title('GIK Solution')
-view([0 -1 0]);
+show(robot,solutions,'PreservePlot',false);
+xlim([-2 2]);
+ylim([-2 2]);
+zlim([-1 5]);
+view([1 1 1]);
+drawnow
+
+output = [roll pitch rad2deg(solutions(1:4,1))' ViolationLM ViolationLR ViolationUM ViolationUD ViolationLRFinOrientation ViolationUDFinOrientation]
+
+% %% 
+% %Solve inverse kinematics for trajectory
+% datas = csvread("trajectorydata\trajectories\Gen_0_C_0_MaxAng_19.1_ThkAng_6.8_RotAng_11.9_RotInt_1.4_SpdCde_3_Spdupv_0.3_Kv_0.5_hdev_0.9_freq_0.18_TB.csv");
+% size = length(datas);
+% output = zeros(size(1),12);
+% 
+% pitch_datas = datas(:, 3);
+% roll_datas = datas(:, 4);
+% 
+% 
+%     
+% for idx = 1:1:size(1); 
+%     roll = roll_datas(idx);
+%     pitch = pitch_datas(idx);
+%     yaw = 0;
+% 
+%     finOrientation.TargetOrientation = eul2quat([deg2rad(yaw) deg2rad(roll) deg2rad(pitch)]);
+%     [solutions, solutionInfo] = gik(iniGuess, positionTargetLM, positionTargetLR, positionTargetUM, positionTargetUD, finOrientation, positionTargetEndEffectors);
+%     
+%     ViolationLM = solutionInfo.ConstraintViolations(1).Violation;
+%     ViolationLR = solutionInfo.ConstraintViolations(2).Violation;
+%     ViolationUM = solutionInfo.ConstraintViolations(3).Violation;
+%     ViolationUD = solutionInfo.ConstraintViolations(4).Violation;
+%     ViolationLRFinOrientation = solutionInfo.ConstraintViolations(5).Violation;
+%     ViolationUDFinOrientation = solutionInfo.ConstraintViolations(6).Violation;
+%     
+%     iniGuess = solutions;
+% 
+%     show(robot,solutions,'PreservePlot',false);
+%     xlim([-2 2]);
+%     ylim([-2 2]);
+%     zlim([-1 5]);
+%     view([1 1 1]);
+%     drawnow
+% 
+%     output(idx,:) = [roll pitch rad2deg(solutions(1:4,1))' ViolationLM ViolationLR ViolationUM ViolationUD ViolationLRFinOrientation ViolationUDFinOrientation]
+% end
+%% 
