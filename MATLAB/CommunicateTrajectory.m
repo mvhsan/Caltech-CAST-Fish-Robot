@@ -1,6 +1,6 @@
 %% Prepare trajectory data
 %Read timestep and tait-bryan angles from CSV
-datas = csvread("trajectorydata/Trajectories/Gen_0_C_1_MaxAng_18.6_ThkAng_13.5_RotAng_36_RotInt_4.6_SpdCde_1_Spdupv_0.8_Kv_0.2_hdev_0.9_freq_0.1_TB.csv");
+datas = csvread("trajectorydata/Trajectories/gen_0_C_0_MaxAng_15_ThkAng_10_RotAng_50_RotInt_0_SpdCde_0_Spdupv_1_Kv_0_hdev_1.5_freq_0.2_TB.csv");
 
 t = datas(:, 1); %timestep
 yaw_datas = datas(:, 2); %yaw angle
@@ -26,48 +26,58 @@ end
 %% Setup Connection with  Arduino
 delete(instrfindall) %Delete any previous connections
 
-serialPort = 'COM3';    % define COM port #
+serialPort = 'COM3';    % define COM port
 s = serial(serialPort); % create the serial communication
-s.Baudrate = 250000; %set the baudrate (same as the arduino one)
+s.Baudrate = 115200; %set the baudrate (same as the arduino one)
 fopen(s); %open the communication
 
 pause(3);
 
-%Check if overwriting is necessary
-serialdata = fscanf(s, '%s');
-while (true)
-    if (serialdata == ">>>") %Arduino requires input
-        userinput = input('Overwrite? (Y/N): ', 's');
-        fprintf(s, '%s', userinput);
-    end
-    if (serialdata == "<<<") %Arduino is ready for data transmission
-        break;
-    end
-    serialdata = fscanf(s, '%s')
-end
+fprintf(s, '%s', "MATLAB ready for transmission");
+    dat = fscanf(s,'%s')
+    dat = fscanf(s,'%s')
+
+
+% %Check if overwriting is necessary
+% serialdata = fscanf(s, '%s');
+% while (true)
+%     if (serialdata == ">>>") %Arduino requires input
+%         userinput = input('Overwrite? (Y/N): ', 's');
+%         fprintf(s, '%s', userinput);
+%     end
+%     if (serialdata == "<<<") %Arduino is ready for data transmission
+%         break;
+%     end
+%     serialdata = fscanf(s, '%s')
+% end
+
 %% Communicate data to Arduino
 %transform the vector into string with starting ('<'), delimiter (','), and ending ('>') characters
-vectorStartChar = '<';
-vectorDelimiter = ',';
-vectorEndChar = '>';
-transmissionDoneChar = '!';
+vectorStartChar = "<";
+vectorDelimiter = ",";
+vectorEndChar = ">";
+transmissionDoneChar = "!";
+
+vectorSizes = size(vectors);
 
 %for loop : sending the datas as a string("<yaw, pitch, roll>") to arduino 
-for curVector = 1:1:size(vectors)
-    vectorMessage = '' + vectorStartChar; % Running vector message to hold a single vector
+for curVector = 1:1:vectorSizes(1)
+    vectorMessage = vectorStartChar; % Running vector message to hold a single vector
 
-    for curVectorValue = 1:vectorSizes(2)
+    for curVectorValue = 1:1:vectorSizes(2)
         vectorMessage = join([vectorMessage num2str(vectors(curVector, curVectorValue), '%.6f') vectorDelimiter], "");
     end
     vectorMessage = strip(vectorMessage,'right', vectorDelimiter); % Remove trailing delimiter
     vectorMessage = join([vectorMessage vectorEndChar], ""); % End vector character
-    %positionMessage=['<' num2str(time, '%.6f') ',' num2str(position(1), '%.6f') ',' num2str(position(2), '%.6f') ',' num2str(position(3),'%.6f') '>'];
+    
     %send the message to arduino
     fprintf(s, '%s', vectorMessage);
+    
     %read the data sent by the arduino to check if it is correct
     dat = fscanf(s,'%s')
-
 end
-fprintf(s, '%s', transmissionDoneChar); %Done character
+
+%Send the done character to indicate that transmission of data is done
+fprintf(s, '%s', transmissionDoneChar); 
 
 delete(instrfindall)

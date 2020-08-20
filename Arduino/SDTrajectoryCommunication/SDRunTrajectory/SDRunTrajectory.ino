@@ -1,7 +1,7 @@
 /*
    Tyler Nguyen 2020
    tylernguyen@caltech.edu
-   Reads a trajectory stored on an SD Card, and commands servos.
+   Reads a fin trajectory stored on an SD Card, and commands servos.
 */
 
 #include <string.h>
@@ -17,25 +17,29 @@ File sdFile;
 
 //initialization of data structures that will store received characters from SD card
 const byte numChars = 16; //Max num chars to expect when reading from serial for each value
-char recvChars[4][numChars]; //Stores the current vector values. (timestep,phi,theta,psi)
+char recvChars[6][numChars]; //Stores the servo angles received. (timestep,yaw,up,down,left,right)
 
 //Servos
-Servo L, R, U, D;
+Servo U, D, L, R;
 
 //initialization of the different angles. Will change
-float pwmRotation = 90;
-float upDownAngle = 90;
-float leftRightAngle = 90;
 float timestep = 0;
+float yawAngle = 90;
+float upAngle = 90;
+float downAngle = 90;
+float leftAngle = 90;
+float rightAngle = 90;
 
-int lastUDMicroseconds = 0;
-int lastLRMicroseconds = 0;
+int upMS, downMS, leftMS, rightMS;
+
+int lastUMicroseconds = 0;
+int lastLMicroseconds = 0;
 
 //Stores the number of times to run trajectory. 1-indexed.
-int timesToRun = 1;
+int timesToRun = 10;
+
 //Flag whether this is the first time that trajectory has run (important for the first vector timing)
 boolean firstTime = true;
-
 
 //Characters that define vector
 boolean recvInProgress = false;
@@ -45,6 +49,7 @@ const char endMarker = '>';
 
 //Stores the starting time in milliseconds of trajectory
 long startTime = millis();
+long initTime = millis();
 
 //Indices for storage of vector
 byte curVar;
@@ -67,13 +72,13 @@ SBGC_cmd_angles_data_t curAngleData;
 
 void setup() {
   //Serial initialization for USB
-  Serial.begin(250000);
+  Serial.begin(115200);
 
   //Serial and cmd initialization for SBGC communicatiom
   Serial1.begin(115200);
   SBGC_Demo_setup(&Serial1);
   outCmd.init(SBGC_CMD_GET_ANGLES);
-  //sbgc_parser.send_cmd(outCmd, 0);
+  sbgc_parser.send_cmd(outCmd, 0);
 
 
   //Wait for user input to begin
@@ -104,18 +109,14 @@ void setup() {
   U.attach(6);
   D.attach(5);
 
-
   Serial.print("Starting trajectory... Initialization took: ");
   Serial.print((millis() - startTime) / 1000);
   Serial.println("seconds.");
+
+  initTime = millis();
 }
 
-
-
 void loop() {
-
-
-
   //Run the trajectory 'timesToRun' number of times
   if (timesToRun > 0) {
 
@@ -142,22 +143,26 @@ void loop() {
       } else if (!parsed) {
         //Parse the character data into floats if it hasn't been parsed yet
         timestep = atof(recvChars[0]);
-        pwmRotation = atof(recvChars[1]);
-        upDownAngle = atof(recvChars[2]);
-        leftRightAngle = atof(recvChars[3]);
+        yawAngle = atof(recvChars[1]);
+        upAngle = atof(recvChars[2]);
+        downAngle = atof(recvChars[3]);
+        leftAngle = atof(recvChars[4]);
+        rightAngle = atof(recvChars[5]);
+
+        //Convert the angle into milliseconds for the servo signal
+        upMS = (round) (upAngle / 180.0 * 1000.0 + 1500.0);
+        downMS = (round) (downAngle / 180.0 * 1000.0 + 1500.0);
+        leftMS = (round) (leftAngle / 180.0 * 1000.0 + 1500.0);
+        rightMS = (round) (rightAngle / 180.0 * 1000.0 + 1500.0);
+        
         parsed = true;
       }
     }
 
-
-
     //If it is the correct time to run the vector, send it to the Arduino
     if (((millis() - startTime) >= timestep * 1000)) {
-      //Convert the angle into MS for the servo signal
-      int upDownMS = (round) (upDownAngle / 180 * 1000 + 1000);
-      int leftRightMS = (round) (leftRightAngle / 180 * 1000 + 1000);
 
-              sbgc_parser.send_cmd(outCmd, 0);
+      sbgc_parser.send_cmd(outCmd, 0);
       
       if (sbgc_parser.read_cmd()) {
         //Receive incoming data
@@ -166,30 +171,30 @@ void loop() {
         SBGC_cmd_angles_data_unpack(curAngleData, inCmd);
       }
 
-
+      
+      if (leftMS != lastLMicroseconds) {
+        L.writeMicroseconds(leftMS);
+        R.writeMicroseconds(rightMS);
+        lastLMicroseconds = leftMS;
+      }
+      
       //If desired angle has changed, send it to servos. Otherwise, there's no need to send it again
-      if (upDownMS != lastUDMicroseconds) {
-        U.writeMicroseconds(upDownMS);
-        D.writeMicroseconds(3000 - upDownMS);
-        lastUDMicroseconds = upDownMS;
+      if (upMS != lastUMicroseconds) {
+        U.writeMicroseconds(upMS);
+        D.writeMicroseconds(downMS);
+        lastUMicroseconds = upMS;
       }
 
-      if (leftRightMS != lastLRMicroseconds) {
-        L.writeMicroseconds(leftRightMS);
-        R.writeMicroseconds(2940 - leftRightMS);
-        lastLRMicroseconds = leftRightMS;
-      }
-
-
-
+      Serial.print(millis() - initTime); Serial.print(" ");
       Serial.print(millis() - startTime); Serial.print(" ");
-
-      Serial.print(SBGC_ANGLE_TO_DEGREE(curAngleData.sensor_data[1].imu_data)); Serial.print(" ");
-
       Serial.print(timestep * 1000, 8); Serial.print(" ");
-      Serial.print(upDownMS); Serial.print(" "); Serial.print(3000 - upDownMS);
-      Serial.print(" "); Serial.print(leftRightMS); Serial.print(" "); Serial.println(2940 - leftRightMS);
+      Serial.print(upAngle); Serial.print(" ");
+      Serial.print(downAngle); Serial.print(" ");;
+      Serial.print(leftAngle); Serial.print(" ");
+      Serial.print(rightAngle); Serial.print(" ");
 
+      Serial.print(SBGC_ANGLE_TO_DEGREE(curAngleData.sensor_data[0].imu_data)); Serial.print(" ");
+      Serial.println(SBGC_ANGLE_TO_DEGREE(curAngleData.sensor_data[1].imu_data));
 
 
       //Mark that the next vector is ready to be received from SD
@@ -242,6 +247,8 @@ void receiveChar() {
     recvChars[0][1] = '\0';
     recvChars[0][2] = '\0';
     recvChars[0][3] = '\0';
+    recvChars[0][4] = '\0';
+    recvChars[0][5] = '\0';
 
     curVar = 0;
     curChar = 0;

@@ -4,7 +4,7 @@
 File sdFile;
 
 void setup() {
-    Serial.begin(250000);
+    Serial.begin(115200);
     Serial.setTimeout(100);
 
     while (!Serial) {
