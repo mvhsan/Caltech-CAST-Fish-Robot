@@ -74,12 +74,13 @@ void setup() {
   //Serial initialization for USB
   Serial.begin(115200);
 
+/*
   //Serial and cmd initialization for SBGC communicatiom
   Serial1.begin(115200);
   SBGC_Demo_setup(&Serial1);
   outCmd.init(SBGC_CMD_GET_ANGLES);
   sbgc_parser.send_cmd(outCmd, 0);
-
+*/
 
   //Wait for user input to begin
   Serial.println("Press ENTER to begin: ");
@@ -162,6 +163,7 @@ void loop() {
     //If it is the correct time to run the vector, send it to the Arduino
     if (((millis() - startTime) >= timestep * 1000)) {
 
+/*
       sbgc_parser.send_cmd(outCmd, 0);
       
       if (sbgc_parser.read_cmd()) {
@@ -170,7 +172,7 @@ void loop() {
         //Unpacks the incoming data into curAngleData
         SBGC_cmd_angles_data_unpack(curAngleData, inCmd);
       }
-
+*/
       
       if (leftMS != lastLMicroseconds) {
         L.writeMicroseconds(leftMS);
@@ -193,8 +195,8 @@ void loop() {
       Serial.print(leftAngle); Serial.print(" ");
       Serial.print(rightAngle); Serial.print(" ");
 
-      Serial.print(SBGC_ANGLE_TO_DEGREE(curAngleData.sensor_data[0].imu_data)); Serial.print(" ");
-      Serial.println(SBGC_ANGLE_TO_DEGREE(curAngleData.sensor_data[1].imu_data));
+//      Serial.print(SBGC_ANGLE_TO_DEGREE(curAngleData.sensor_data[0].imu_data)); Serial.print(" ");
+//      Serial.println(SBGC_ANGLE_TO_DEGREE(curAngleData.sensor_data[1].imu_data));
 
 
       //Mark that the next vector is ready to be received from SD
