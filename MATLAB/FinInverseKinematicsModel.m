@@ -2,10 +2,10 @@
 close all
 %% 
 %Lengths and variables in inches
-baseLength = 1.75;
-servoArmLength = 1;
-linkageLength = 2;
-swashPlateLength = 2.75;
+baseLength = 1.64;
+servoArmLength = .75;
+linkageLength = 1.85;
+swashPlateLength = 2.43;
 middleHeight = 2;
 %% 
 % Start with a blank rigid body tree model.
