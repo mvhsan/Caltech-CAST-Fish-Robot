@@ -96,6 +96,7 @@ void setup() {
 }
 
 void loop() {
+  
   if (running) {
     //Receive a character from serial if available
     recvData();

@@ -1,6 +1,6 @@
 %% Prepare trajectory data
 %Read timestep and tait-bryan angles from CSV
-datas = csvread("trajectorydata/Trajectories/gen_0_C_0_MaxAng_15_ThkAng_10_RotAng_50_RotInt_0_SpdCde_0_Spdupv_1_Kv_0_hdev_1.5_freq_0.2_TB.csv");
+datas = csvread("trajectorydata/Trajectories/all_zeroes.csv");
 
 t = datas(:, 1); %timestep
 yaw_datas = datas(:, 2); %yaw angle
@@ -23,10 +23,11 @@ for i = 1:1:size(datas)
     vectors(i, 5) = LAngle;
     vectors(i, 6) = RAngle;
 end
+disp("done calculating angles");
 %% Setup Connection with  Arduino
 delete(instrfindall) %Delete any previous connections
 
-serialPort = 'COM3';    % define COM port
+serialPort = 'COM7';    % define COM port
 s = serial(serialPort); % create the serial communication
 s.Baudrate = 115200; %set the baudrate (same as the arduino one)
 fopen(s); %open the communication

@@ -9,8 +9,8 @@
 #include <SD.h>
 #include <Servo.h>
 #include <inttypes.h>
-#include <SBGC_Arduino.h>
-#include <SBGC.h>
+//#include <SBGC_Arduino.h>
+//#include <SBGC.h>
 
 
 File sdFile;
@@ -36,7 +36,7 @@ int lastUMicroseconds = 0;
 int lastLMicroseconds = 0;
 
 //Stores the number of times to run trajectory. 1-indexed.
-int timesToRun = 10;
+int timesToRun = 1;
 
 //Flag whether this is the first time that trajectory has run (important for the first vector timing)
 boolean firstTime = true;
@@ -65,9 +65,9 @@ boolean newdata = false;
 boolean parsed = false;
 
 //Data to send (outCmd) and that are received (inCmd) to/from SBGC
-SerialCommand inCmd, outCmd;
+//SerialCommand inCmd, outCmd;
 
-SBGC_cmd_angles_data_t curAngleData;
+//SBGC_cmd_angles_data_t curAngleData;
 
 
 void setup() {
@@ -151,10 +151,10 @@ void loop() {
         rightAngle = atof(recvChars[5]);
 
         //Convert the angle into milliseconds for the servo signal
-        upMS = (round) (upAngle / 180.0 * 1000.0 + 1500.0);
-        downMS = (round) (downAngle / 180.0 * 1000.0 + 1500.0);
-        leftMS = (round) (leftAngle / 180.0 * 1000.0 + 1500.0);
-        rightMS = (round) (rightAngle / 180.0 * 1000.0 + 1500.0);
+        upMS = (round) (upAngle / 180.0 * 1000.0 + 1520.0);
+        downMS = (round) (downAngle / 180.0 * 1000.0 + 1520.0);
+        leftMS = (round) (leftAngle / 180.0 * 1000.0 + 1520.0);
+        rightMS = (round) (rightAngle / 180.0 * 1000.0 + 1520.0);
         
         parsed = true;
       }
@@ -162,18 +162,6 @@ void loop() {
 
     //If it is the correct time to run the vector, send it to the Arduino
     if (((millis() - startTime) >= timestep * 1000)) {
-
-/*
-      sbgc_parser.send_cmd(outCmd, 0);
-      
-      if (sbgc_parser.read_cmd()) {
-        //Receive incoming data
-        inCmd = sbgc_parser.in_cmd;
-        //Unpacks the incoming data into curAngleData
-        SBGC_cmd_angles_data_unpack(curAngleData, inCmd);
-      }
-*/
-      
       if (leftMS != lastLMicroseconds) {
         L.writeMicroseconds(leftMS);
         R.writeMicroseconds(rightMS);
@@ -186,25 +174,19 @@ void loop() {
         D.writeMicroseconds(downMS);
         lastUMicroseconds = upMS;
       }
-
-      Serial.print(millis() - initTime); Serial.print(" ");
+      Serial.println();     //start off with a new line
+      Serial.print(millis() - initTime);  Serial.print(" ");
       Serial.print(millis() - startTime); Serial.print(" ");
-      Serial.print(timestep * 1000, 8); Serial.print(" ");
-      Serial.print(upAngle); Serial.print(" ");
+      Serial.print(timestep * 1000, 8);   Serial.print(" ");
+      Serial.print(upAngle);   Serial.print(" ");
       Serial.print(downAngle); Serial.print(" ");;
       Serial.print(leftAngle); Serial.print(" ");
-      Serial.print(rightAngle); Serial.print(" ");
-
-//      Serial.print(SBGC_ANGLE_TO_DEGREE(curAngleData.sensor_data[0].imu_data)); Serial.print(" ");
-//      Serial.println(SBGC_ANGLE_TO_DEGREE(curAngleData.sensor_data[1].imu_data));
-
+      Serial.print(rightAngle);
 
       //Mark that the next vector is ready to be received from SD
       newdata = false;
       parsed = false;
     }
-
-
 
     if (!sdFile.available()) {
       timesToRun--;

@@ -1,0 +1,54 @@
+File:   SDRunTraj_WithInterpolation
+
+Procedure:
+
+EnterInitialPosition():
+
+inputs: initial position, angles for all 4 servos
+
+variables:
+    counter
+    LastCounterUpdateTime
+
+WHILE (counter <= MAX_COUNTER)
+    IF (current time - LastCounterUpdateTime >= COUNTER_UPDATE_TIME)     THEN
+        increment counter
+        LastCounterUpdateTime = current time
+        update servo positions
+
+        proportion is counter / MAX_COUNTER
+
+        // servos are at 90 degrees, but the code is written so
+        // that angles are all RELATIVE to 90 degrees
+        servo angle is ((1 - proportion) * 0) + (proportion * desired initial angle)
+    ENDIF
+ENDWHILE
+
+
+
+
+// I need a better name for this function
+ReturnToPosition():
+
+inputs: initial position, angles for all 4 servos
+
+variables:
+    counter
+    LastCounterUpdateTime
+
+initialize counter to 0
+initialize LastCoutnerUpdateTime to current time
+
+WHILE (counter <= MAX_COUNTER)
+    IF (current time - LastCounterUpdateTime >= COUNTER_UPDATE_TIME)     THEN
+        increment counter
+        LastCounterUpdateTime = current time
+        update servo positions
+
+        proportion is counter / MAX_COUNTER
+
+        // servos are at 90 degrees, but the code is written so
+        // that angles are all RELATIVE to 90 degrees
+        servo angle is (proportion * 0) + ((1 - proportion) * desired initial angle)
+    ENDIF
+ENDWHILE
