@@ -103,23 +103,38 @@ for pointNumber = 1:NUM_INTERPOLATED_PTS
 end
 
 disp("done calculating angles");
-%% Setup Connection with  Arduino
-disp("setting up connection");
-delete(instrfindall) %Delete any previous connections
+%% Open Communication With Arduino
+delete(instrfindall)            %delete any previous connections
+s = serialport('COM7', 115200); %create the serial communication
+%set the baudrate (same as the arduino one)
 
-serialPort = 'COM7';    % define COM port
-s = serial(serialPort); % create the serial communication
-s.Baudrate = 115200; %set the baudrate (same as the arduino one)
-fopen(s); %open the communication
+configureCallback(s, "terminator", @RespondToArduino);
+configureTerminator(s, "CR/LF");
 
-pause(3);
+pause(3);   %allow some buffer time for serial communication setup
 
-fprintf(s, '%s', "MATLAB ready for transmission");
-    dat = fscanf(s,'%s')
-    dat = fscanf(s,'%s')
+global arduinoAcknowledged;     %Arduino has not yet sent message that
+arduinoAcknowledged = false;    %MATLAB has acknowledged
+global initializedSD;           %SD card has not yet been initialized
+initializedSD = false;
 
+%Arduino does not start until MATLAB sends message over Serial
+write(s, "MATLAB ready for transmission", "string");
 
-%% Communicate data to Arduino
+%MATLAB code is trapped until callback function is triggered
+while arduinoAcknowledged == false
+    pause(.5);
+    disp("waiting for SD update");
+end
+
+if initializedSD == false   %either SD-fail or SD-success was sent
+    disp("SD initialization failed.");
+    while true              % need to restart code, SD card failed
+    end
+end
+
+disp("done with section");
+%% Communicate Trajectory to Arduino
 %transform the vector into string with starting ('<'), delimiter (','), and ending ('>') characters
 vectorStartChar = "<";
 vectorDelimiter = ",";
@@ -128,7 +143,19 @@ transmissionDoneChar = "!";
 
 vectorSizes = size(vectors);
 
-%for loop : sending the datas as a string("<yaw, pitch, roll>") to arduino 
+arduinoAcknowledged = false;    %reset flag
+write(s, "instr1", "string");    %tell Arduino to switch to mode where trajectory
+                                    %is received
+                        
+%wait for Arduino to acknowledge instruction                        
+while arduinoAcknowledged == false
+    pause(1)
+    disp("waiting to communicate traj");
+end
+
+%for loop : sending the datas as a string("<yaw, pitch, roll>") to Arduino
+%Arduino will be sending back vectors received, which will be displayed
+%in user console for troubleshooting purposes.
 for curVector = 1:1:vectorSizes(1)
     vectorMessage = vectorStartChar; % Running vector message to hold a single vector
 
@@ -139,13 +166,47 @@ for curVector = 1:1:vectorSizes(1)
     vectorMessage = join([vectorMessage vectorEndChar], ""); % End vector character
     
     %send the message to arduino
-    fprintf(s, '%s', vectorMessage);
-    
-    %read the data sent by the arduino to check if it is correct
-    dat = fscanf(s,'%s')
+    write(s, vectorMessage, "uint8");
+
 end
 
 %Send the done character to indicate that transmission of data is done
-fprintf(s, '%s', transmissionDoneChar); 
+write(s, transmissionDoneChar, "uint8");
 
-delete(instrfindall)
+
+%% Run Trajectory from Arduino
+
+arduinoAcknowledged = false;    %reset flag
+write(s, "instr2", "string");    %tell Arduino to switch to mode where trajectory
+                        %stored on SD card is performed
+                        
+%wait for Arduino to acknowledge instruction
+%Arduino will be outputting the servo angles it is writing, and the times
+%at which they are doing so
+disp("entering loop");
+while arduinoAcknowledged == false
+    pause(.5)
+    disp("waiting to run traj");
+end
+
+%% Callback Functions
+
+%This callback function is called whenever the Arduino sends MATLAB
+%something over serial. It will either print it to the user console, or
+%update arduinoAcknowledged so that MATLAB knows the Arduino has sent a 
+%specific message.
+function RespondToArduino(serial, event)   %must have these as arguments
+    global arduinoAcknowledged;         %must be global to update variables
+    global initializedSD;               %outside callback function
+    line = readline(serial);           
+    disp(line);
+    if line == "received" || line == "SD-fail"
+        arduinoAcknowledged = true;
+    elseif line == "SD-success"
+        arduinoAcknowledged = true;
+        initializedSD = true;
+    elseif line == "done instr2"
+        arduinoAcknowledged = true;
+        disp("Trajectory has been performed");
+    end
+end

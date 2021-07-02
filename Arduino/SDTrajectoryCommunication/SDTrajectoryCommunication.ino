@@ -50,28 +50,6 @@ void setup() {
   }
   Serial.println("Initialization done.");
 
-  /*  Overwrite protection code
-    //Open file on SD for writing. If file already exists on SD, ask whether to overwrite
-    if (SD.exists(filename)) {
-      Serial.print(filename);
-      Serial.println(" already exists. Overwrite? (Y/N):");
-      Serial.println(">>>");
-
-
-
-      //If user inputs Y, go ahead and overwrite, but otherwise stop the program
-      if (Serial.read() == 'Y'){
-        SD.remove("test.txt");
-        Serial.println("File overwritten.");
-      } else {
-        Serial.println("File will not be overwritten. Program will now halt.");
-        while (1);
-      }
-    }
-
-      sdFile = SD.open(filename, FILE_WRITE);
-  */
-
   //Wait until MATLAB is ready for transmitting
   while (Serial.available() <= 0) {
     delay(1000);

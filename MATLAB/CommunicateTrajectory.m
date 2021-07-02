@@ -1,6 +1,6 @@
 %% Prepare trajectory data
 %Read timestep and tait-bryan angles from CSV
-datas = csvread("trajectorydata/Trajectories/all_zeroes.csv");
+datas = csvread("trajectorydata/Trajectories/Gen_0_C_1_MaxAng_25_ThkAng_25_RotAng_25_RotInt_25_SpdCde_0_Spdupv_0_Kv_0_hdev_0_freq_0.4_TB.csv");
 
 t = datas(:, 1); %timestep
 yaw_datas = datas(:, 2); %yaw angle

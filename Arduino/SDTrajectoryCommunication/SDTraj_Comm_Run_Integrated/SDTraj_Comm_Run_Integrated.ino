@@ -56,6 +56,12 @@ int timesToRun = 1;
 //Flag whether this is the first time that trajectory has run (important for the first vector timing)
 boolean trajectoryReset = true;
 
+//Flag whether trajectory on SD card is to be reset
+boolean updatingSDTrajectory = false;
+
+//Filename to open and store to. Will need confirmation before overwriting
+String filename = "test.txt";
+
 //Characters that define vector
 boolean recvInProgress = false;
 const char startMarker = '<';
@@ -74,7 +80,7 @@ byte curChar;
 char received;
 
 //Flag whether full vector has been received
-boolean newdata = false;
+boolean newData = false;
 
 //Flag whether vector has been parsed
 boolean parsed = false;
@@ -83,133 +89,150 @@ boolean parsed = false;
 boolean waitingForInstruction = true;
 
 String MATLABmessage;
+String debugMsg;
+char terminator = '\n'; //Char that marks end of individual message from MATLAB
 
-//Data to send (outCmd) and that are received (inCmd) to/from SBGC
-//SerialCommand inCmd, outCmd;
-
-//SBGC_cmd_angles_data_t curAngleData;
-
+//Stores a vector as it is being received, is cleared when data has been parsed
+String receivedVector = "";
 
 void setup() {
-
+  pinMode(13, OUTPUT);
   //setup from SDRunTrajectory
   
   //Serial initialization for USB
   Serial.begin(115200);
+  Serial.setTimeout(100);
 
-  //Wait for user input to begin
-  Serial.println("Write to serial to initialize SD");
-  while (Serial.available() == 0);
+  //Wait for MATLAB input to begin
+  while (Serial.available() == 0) {
+    digitalWrite(13, HIGH);
+    delay(500);
+    digitalWrite(13, LOW);
+    delay(200);
+  }
 
+  //MATLAB has outputted something, now clear Serial
+  debugMsg = Serial.readStringUntil(terminator);
+  Serial.println(debugMsg);
+  
   //Initialize SD card
   pinMode(53, OUTPUT);
-  Serial.print("Initializing SD card...");
-  if (!SD.begin(10)) {
-    Serial.println("initialization failed!");
-    while (1);
-  }
-  Serial.println("initialization done.");
 
-  //Open file on SD for reading
-  sdFile = SD.open("test.txt", O_READ);
+  if (!SD.begin(10)) {
+    Serial.println("SD-fail");
+    while (1) {
+      digitalWrite(13, HIGH);
+      delay(200);
+      digitalWrite(13, LOW);
+      delay(500);
+    }
+  }
 
   //If file cannot be opened, stop program
+  sdFile = SD.open(filename, FILE_WRITE);
   if (!sdFile) {
-    Serial.println("error opening file");
-    while (1);
+    Serial.println("SD-fail");
+    while (1) {
+      digitalWrite(13, HIGH);
+      delay(1000);
+      digitalWrite(13, LOW);
+      delay(1000);
+    }
   }
 
-  //Attach servos. Note: Pin 10 was acting strangely, and the servo was being sent false signals. Try to avoid using it in the future.
-  R.attach(9);
-  L.attach(8);
-  U.attach(6);
-  D.attach(5);
-
-  Serial.print("Starting trajectory... Initialization took: ");
-  Serial.print((millis() - startTime) / 1000);
-  Serial.println("seconds.");
+  Serial.println("SD-success");
 
   initTime = millis();
-
-
-
-
-  
 }
 
 void loop() {
 
   if (waitingForInstruction) {
-    if (Serial.available >= 8) {        // complete message available in Serial
-      MATLABmessage = Serial.read();
-
-      if (MATLABmessage == "{instr1}") {  // update trajectory
+    //Attach servos. Note: Pin 10 was acting strangely, and the servo was being sent false signals. Try to avoid using it in the future.
+    R.detach();
+    L.detach();
+    U.detach();
+    D.detach();
+    digitalWrite(13, HIGH);
+    delay(200);
+    digitalWrite(13, LOW);
+    delay(200);
+    if (Serial.available() >= 6) {        // complete message available in Serial
+      MATLABmessage = Serial.readStringUntil(terminator);
+      Serial.println(MATLABmessage);
+      if (MATLABmessage.equals("instr1")) {  // update trajectory
         updatingSDTrajectory = true;
         waitingForInstruction = false;
-        Serial.write("{received}");
-        //Wait until MATLAB is ready for transmitting
-        while (Serial.available() <= 0) {
-          delay(1000);
-        }
+        Serial.println("received");
       
-        //If the file exists already, we'll wipe it clean
+        //If the target SD file exists already, we'll wipe it clean
         if (SD.exists(filename)) {
           SD.remove("test.txt");
         }
       
         sdFile = SD.open(filename, FILE_WRITE);
       
-        //If file cannot be opened, display error and stop the program
-        if (!sdFile) {
-          Serial.println("Error opening file. Program will not halt");
-          while (1);
-        }
+//        //If file cannot be opened, display error and stop the program
+//        if (!sdFile) {
+//          Serial.println("SD-fail\n");
+//          while (1);
+//        }
       
         updatingSDTrajectory = true;
-        Serial.println("File opened successfully. Waiting for MATLAB data...");
+        //Serial.println("File opened successfully. Waiting for MATLAB data...");
         //Signal to MATLAB that Arduino is ready for data transfer
       }
-      else if (MATLABmessage == "{instr2}") { // perform trajectory
-        updatingSDtrajectory = false;
+      else if (MATLABmessage.equals("instr2")) { // perform trajectory
+        updatingSDTrajectory = false;
         waitingForInstruction = false;
-        Serial.write("{received}");
+        trajectoryReset = true;
+        Serial.println("received");
       }
     }
   }
   else {
-    //If running the trajectory starting with the vector, we must go to the beginning of the trajectory
-    if (trajectoryReset) {
-      //Seek to beginning of SD file
-      sdFile.seek(0);
-  
-      //Reset timestep
-      timestep = 0;
-  
-      //Mark the starting time on the Arduino for the trajectory to keep pace with
-      startTime = millis();
-  
-      trajectoryReset = false;
-    }
 
     if (updatingSDTrajectory) {
-      if (updatingSDTrajectory) {
-        //Receive a character from serial if available
-        recvData();
-        //If a full vector has been received, store it on the SD card
-        if (newData) {
-          newData = false;
-          writeVectorToSD();
-          returnData();
-        }
-  }
+      
+      //Receive a character from serial if available
+      recvData();
+      
+      //If a full vector has been received, store it on the SD card
+      if (newData) {
+        newData = false;
+        writeVectorToSD();
+        returnData();
+      }
+
     }
     else {
-
+      //starting to run trajectory, need to initialize stuff
+      if (trajectoryReset) {
+        //Attach servos. Note: Pin 10 was acting strangely, and the servo was being sent false signals. Try to avoid using it in the future.
+        R.attach(9);
+        L.attach(8);
+        U.attach(6);
+        D.attach(5);
+        //Open file on SD for reading
+        sdFile = SD.open("test.txt", O_READ);
+        
+        //Seek to beginning of SD file
+        sdFile.seek(0);
+    
+        //Reset timestep
+        timestep = 0;
+    
+        //Mark the starting time on the Arduino for the trajectory to keep pace with
+        startTime = millis();
+    
+        trajectoryReset = false;
+      }
+      
       // check if there are vector points available to read
       if (sdFile.available()) {
 
         //If a full vector has not been read yet, receive more characters from SD card, otherwise parse the data
-        if (!newdata) {
+        if (!newData) {
           receiveChar();
           return;
         } else if (!parsed) {
@@ -220,7 +243,7 @@ void loop() {
           downAngle = atof(recvChars[3]);
           leftAngle = atof(recvChars[4]);
           rightAngle = atof(recvChars[5]);
-    
+  
           //Convert the angle into milliseconds for the servo signal
           upMS = (round) (upAngle / 180.0 * 1000.0 + 1520.0);
           downMS = (round) (downAngle / 180.0 * 1000.0 + 1520.0);
@@ -229,57 +252,54 @@ void loop() {
           
           parsed = true;
         }
-      
+      }
   
-        //If it is the correct time to run the vector, send it to the servos
-        if (((millis() - startTime) >= timestep * 1000)) {
-          if (leftMS != lastLMicroseconds) {
-            L.writeMicroseconds(leftMS);
-            R.writeMicroseconds(rightMS);
-            lastLMicroseconds = leftMS;
-          }
-          
-          //If desired angle has changed, send it to servos. Otherwise, there's no need to send it again
-          if (upMS != lastUMicroseconds) {
-            U.writeMicroseconds(upMS);
-            D.writeMicroseconds(downMS);
-            lastUMicroseconds = upMS;
-          }
-          Serial.println();     //start off with a new line
-          Serial.print(millis() - initTime);  Serial.print(" ");
-          Serial.print(millis() - startTime); Serial.print(" ");
-          Serial.print(timestep * 1000, 8);   Serial.print(" ");
-          Serial.print(upAngle);   Serial.print(" ");
-          Serial.print(downAngle); Serial.print(" ");;
-          Serial.print(leftAngle); Serial.print(" ");
-          Serial.print(rightAngle);
+      //If it is the correct time to run the vector, send it to the Arduino
+      if (((millis() - startTime) >= timestep * 1000)) {
+        if (leftMS != lastLMicroseconds) {
+          L.writeMicroseconds(leftMS);
+          R.writeMicroseconds(rightMS);
+          lastLMicroseconds = leftMS;
+        }
+        
+        //If desired angle has changed, send it to servos. Otherwise, there's no need to send it again
+        if (upMS != lastUMicroseconds) {
+          U.writeMicroseconds(upMS);
+          D.writeMicroseconds(downMS);
+          lastUMicroseconds = upMS;
+        }
+
+        Serial.print(millis() - initTime);  Serial.print(" ");
+        Serial.print(millis() - startTime); Serial.print(" ");
+        Serial.print(timestep * 1000, 8);   Serial.print(" ");
+        Serial.print(upAngle);   Serial.print(" ");
+        Serial.print(downAngle); Serial.print(" ");;
+        Serial.print(leftAngle); Serial.print(" ");
+        Serial.print(rightAngle);
+        Serial.println();     //start off with a new line
       
-      //      Serial.print(SBGC_ANGLE_TO_DEGREE(curAngleData.sensor_data[0].imu_data)); Serial.print(" ");
-      //      Serial.println(SBGC_ANGLE_TO_DEGREE(curAngleData.sensor_data[1].imu_data));
-      
-      
-          //Mark that the next vector is ready to be received from SD
-          newdata = false;
-          parsed = false;
+        //Mark that the next vector is ready to be received from SD
+        newData = false;
+        parsed = false;
+
+        if (!sdFile.available()) {
+          Serial.println("done instr2");    //tell MATLAB trajectory is done being performed
+          waitingForInstruction = true;
+          sdFile.close();                   //close SD file now that we are done writing to it
+          return;
         }
       }
-      else {
-        //No longer running trajectory. Close SD file and stop program
-        waitingForInstruction = true;
-        Serial.println("Done!");
-        
-        
-      }
-    }
+    } 
   }
 }
+
 
 //Retrieve a character from SD card and put it in recvChars
 void receiveChar() {
   received = sdFile.read();
   if (recvInProgress == true) {
     if (received == endMarker) { //End of 3-value pair
-      newdata = true;
+      newData = true;
       recvInProgress = false;
       return;
     } else if (received == delimiter) { //End of a singular value in vector
@@ -306,85 +326,8 @@ void receiveChar() {
     curVar = 0;
     curChar = 0;
 
-    newdata = false;
+    newData = false;
   }
-}
-
-
-
-
-
-
-
-
-
-/*
-
-*/
-
-#include <string.h>
-#include <SPI.h>
-#include <SD.h>
-
-//Filename to open and store to. Will need confirmation before overwriting
-String filename = "test.txt";
-
-//Stores an opened file on the SD card
-File sdFile;
-
-//Flags whether data is still being received
-boolean updatingSDTrajectory = false;
-
-//Flags whether a vector has been fully received from SD and is ready to be parsed
-boolean newData = false;
-
-//Stores a vector as it is being received, is cleared when data has been parsed
-String receivedVector = "";
-
-void setup() {
-  //Begin serial communication
-  Serial.begin(115200);
-  Serial.setTimeout(100);
-
-  // Wait for serial port to connect
-  while (!Serial) {
-    ;
-  }
-
-  //Initialize SD board pins
-  pinMode(53, OUTPUT);
-
-  Serial.print("Initializing SD card... ");
-
-  if (!SD.begin(10)) {
-    Serial.println("Initialization failed!");
-    while (1);
-  }
-  Serial.println("Initialization done.");
-
-  /*  Overwrite protection code
-    //Open file on SD for writing. If file already exists on SD, ask whether to overwrite
-    if (SD.exists(filename)) {
-      Serial.print(filename);
-      Serial.println(" already exists. Overwrite? (Y/N):");
-      Serial.println(">>>");
-
-
-
-      //If user inputs Y, go ahead and overwrite, but otherwise stop the program
-      if (Serial.read() == 'Y'){
-        SD.remove("test.txt");
-        Serial.println("File overwritten.");
-      } else {
-        Serial.println("File will not be overwritten. Program will now halt.");
-        while (1);
-      }
-    }
-
-      sdFile = SD.open(filename, FILE_WRITE);
-  */
-
-  
 }
 
 void recvData() {
@@ -401,7 +344,7 @@ void recvData() {
 
     if (received == doneMarker) { //Done transmitting
       updatingSDTrajectory = false;
-      sdFile.close();
+      sdFile.close();               //done writing to SD card
       Serial.println("Halting..");
       return;
     }
