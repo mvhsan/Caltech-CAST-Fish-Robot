@@ -167,14 +167,18 @@ void loop() {
         //Serial.println("File opened successfully. Waiting for MATLAB data...");
         //Signal to MATLAB that Arduino is ready for data transfer
       }
-      else if (MATLABmessage.equals("instr2")) { // perform trajectory
-        updatingSDTrajectory = false;
+      
+      else if (MATLABmessage.equals("instr2")) {  // perform trajectory
         waitingForInstruction = false;
-        trajectoryReset = true;
+        updatingSDTrajectory = false;             // if not waiting for instruction, either updating or performing trajectory
+                                                  // in this case, performing trajectory 
+        trajectoryReset = true;                   // servos and SD card need to be initialized to perform trajectory
         Serial.println("received");
       }
     }
   }
+
+  // now performing instruction instead of receiving it
   else {
 
     if (updatingSDTrajectory) {
@@ -190,8 +194,9 @@ void loop() {
       }
 
     }
+    
     else {
-      //starting to run trajectory, need to initialize stuff
+      //starting to run trajectory, need to initialize servos and SD card
       if (trajectoryReset) {
         //Attach servos. Note: Pin 10 was acting strangely, and the servo was being sent false signals. Try to avoid using it in the future.
         R.attach(9);
@@ -210,7 +215,7 @@ void loop() {
         //Mark the starting time on the Arduino for the trajectory to keep pace with
         startTime = millis();
     
-        trajectoryReset = false;
+        trajectoryReset = false;    // next time, no need to perform initialization
       }
       
       // check if there are vector points available to read
@@ -254,6 +259,7 @@ void loop() {
           lastUMicroseconds = upMS;
         }
 
+        //Send data for trajectory point performed and associated times to MATLAB over Serial 
         Serial.print(millis() - initTime);  Serial.print(" ");
         Serial.print(millis() - startTime); Serial.print(" ");
         Serial.print(timestep * 1000, 8);   Serial.print(" ");
@@ -261,7 +267,7 @@ void loop() {
         Serial.print(downAngle); Serial.print(" ");;
         Serial.print(leftAngle); Serial.print(" ");
         Serial.print(rightAngle);
-        Serial.println();     //start off with a new line
+        Serial.println();     //newline character is terminator character in MATLAB
       
         //Mark that the next vector is ready to be received from SD
         newData = false;
