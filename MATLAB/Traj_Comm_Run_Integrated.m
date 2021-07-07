@@ -1,3 +1,8 @@
+%The trajectory is broken up into three components: 
+%   start-up sequence  - prevents fin from jerking to starting position
+%   actual trajectory  - trajectory you actually want to run
+%   wind-down sequence - returns fin to original psoition
+
 %% Prepare trajectory data
 %Read timestep and tait-bryan angles from CSV
 datas = csvread("trajectorydata/Trajectories/Gen_0_C_1_MaxAng_25_ThkAng_25_RotAng_25_RotInt_25_SpdCde_0_Spdupv_0_Kv_0_hdev_0_freq_0.4_TB.csv");
@@ -17,9 +22,14 @@ reset_yaw   = 90;
 reset_pitch = 0;
 reset_roll  = 0;
 
-NUM_INTERPOLATED_PTS    = 50;
-START_TIME              = 2;            %measured in seconds
-NUM_CYCLES              = 3;
+NUM_CYCLES              = 3;    %number of times "actual" trajectory is
+                                %performed
+
+%this is the "start-up" sequence, the fin starts pointing straight "up,"
+%and gradually transitions to the first actual trajectory point
+NUM_INTERPOLATED_PTS    = 50;   %number of discrete points for start-up
+START_TIME              = 2;    %time allotted for start-up sequence in seconds
+
 
 for pointNumber = 1:NUM_INTERPOLATED_PTS
     interpolated_pitch  =   (pointNumber / NUM_INTERPOLATED_PTS * start_traj_pitch) ...
