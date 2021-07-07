@@ -105,9 +105,6 @@ void setup() {
 
   //Wait for MATLAB input to begin
   while (Serial.available() == 0) {
-    digitalWrite(13, HIGH);
-    delay(500);
-    digitalWrite(13, LOW);
     delay(200);
   }
 
@@ -121,10 +118,6 @@ void setup() {
   if (!SD.begin(10)) {
     Serial.println("SD-fail");
     while (1) {
-      digitalWrite(13, HIGH);
-      delay(200);
-      digitalWrite(13, LOW);
-      delay(500);
     }
   }
 
@@ -133,10 +126,6 @@ void setup() {
   if (!sdFile) {
     Serial.println("SD-fail");
     while (1) {
-      digitalWrite(13, HIGH);
-      delay(1000);
-      digitalWrite(13, LOW);
-      delay(1000);
     }
   }
 
@@ -153,10 +142,6 @@ void loop() {
     L.detach();
     U.detach();
     D.detach();
-    digitalWrite(13, HIGH);
-    delay(200);
-    digitalWrite(13, LOW);
-    delay(200);
     if (Serial.available() >= 6) {        // complete message available in Serial
       MATLABmessage = Serial.readStringUntil(terminator);
       Serial.println(MATLABmessage);
