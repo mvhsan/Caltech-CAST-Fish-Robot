@@ -3,6 +3,17 @@
 %   actual trajectory  - trajectory you actually want to run
 %   wind-down sequence - returns fin to original psoition
 
+%% import libraries
+dll_location = 'C:\Users\Wind Tunnel\Desktop\fish\james surf\vnproglib\net\bin\win64\VectorNav.dll';
+
+NET.addAssembly(dll_location)
+
+disp("done loading dll")
+
+import VectorNav.Sensor.*
+import VectorNav.Protocol.Uart.*
+disp("done importing libraries")
+
 %% Prepare trajectory data
 %Read timestep and tait-bryan angles from CSV
 datas = csvread("trajectorydata/Trajectories/Gen_0_C_1_MaxAng_25_ThkAng_25_RotAng_25_RotInt_25_SpdCde_0_Spdupv_0_Kv_0_hdev_0_freq_0.4_TB.csv");
@@ -127,7 +138,7 @@ end
 disp("done calculating angles");
 %% Open Communication With Arduino
 delete(instrfindall)            %delete any previous connections
-s = serialport('COM7', 115200); %create the serial communication
+s = serialport('COM4', 115200); %create the serial communication
 %set the baudrate (same as the arduino one)
 
 configureCallback(s, "terminator", @RespondToArduino);
@@ -155,9 +166,10 @@ if initializedSD == false   %either SD-fail or SD-success was sent
     end
 end
 
-disp("done with section");
+disp("done opening communication with Arduino");
 %% Communicate Trajectory to Arduino
-%transform the vector into string with starting ('<'), delimiter (','), and ending ('>') characters
+%transform the vector into string with starting ('<'), delimiter (','),
+%and ending ('>') characters
 vectorStartChar = "<";
 vectorDelimiter = ",";
 vectorEndChar = ">";
@@ -186,7 +198,7 @@ for curVector = 1:1:vectorSizes(1)
     end
     vectorMessage = strip(vectorMessage,'right', vectorDelimiter); % Remove trailing delimiter
     vectorMessage = join([vectorMessage vectorEndChar], ""); % End vector character
-    
+
     %send the message to arduino
     write(s, vectorMessage, "uint8");
 
@@ -195,20 +207,59 @@ end
 %Send the done character to indicate that transmission of data is done
 write(s, transmissionDoneChar, "uint8");
 
+%% Open Communication with IMU
+
+ez = EzAsyncData.Connect('COM3', 115200);
+pause(2);
+disp("done connecting to IMU")
 
 %% Run Trajectory from Arduino
-
+%While running trajectory from Arduino, get corresponding orientation from
+%IMU, store timestamp, pitch and roll in array IMUData
 arduinoAcknowledged = false;    %reset flag
-write(s, "instr2", "string");    %tell Arduino to switch to mode where trajectory
-                        %stored on SD card is performed
-                        
+
+global trajectoryStarted;       %set once trajectory starts
+trajectoryStarted = false;      %trajectory not yet started
+write(s, "instr2", "string");   %tell Arduino to switch to mode where
+                                %trajectory stored on SD card is performed
+
 %wait for Arduino to acknowledge instruction
 %Arduino will be outputting the servo angles it is writing, and the times
 %at which they are doing so
-disp("entering loop");
 while arduinoAcknowledged == false
-    pause(.5)
-    disp("waiting to run traj");
+end
+
+%wait for Arduino to actually start running servo trajectory
+while trajectoryStarted == false
+end
+
+trajectoryStartTime = clock;      %get time where trajectory was started
+
+global getIMUData;      %flag set when IMU data should be sampled
+getIMUData = false;
+
+IMUData = zeroes(size(vectors, 1), 3);
+IMUDataRow = 1;
+
+%wait for trajectory to be completed
+global trajectoryCompleted;
+trajectoryCompleted = false;
+while trajectoryCompleted == false
+
+    %Arduino has updated trajectory, should get new fin trajectory
+    if getIMUData == true   
+        getIMUData = false;     %clear flag
+
+        timeElapsed = etime(clock, trajectoryStartTime);  %get current time
+        orientation = ez.CurrentData.YawPitchRoll;
+
+        IMUData(IMUDataRow, 1) = timeElapsed;
+        IMUData(IMUDataRow, 2) = orientation.Y;     %pitch
+        IMUData(IMUDataRow, 3) = orientation.Z;     %roll
+
+        IMUDataRow = IMUDataRow + 1;
+
+    end
 end
 
 %% Callback Functions
@@ -226,15 +277,27 @@ function RespondToArduino(serial, event)
                                 %message via Serial from MATLAB
     global initializedSD;       %flag for whether SD card has been
                                 %successfully initialized
+    global getIMUData;          %flag for whether orientation data should be
+                                %sampled from IMU
+    global trajectoryStarted;   %flag for whether Arduino has started
+                                %performing trajectory on SD card
+    global trajectoryCompleted; %flag for whether trajectory stored on SD
+                                %card has been performed by Arduino
     line = readline(serial);    %get message from Arduino via serial
-    disp(line);
+    
     if line == "received" || line == "SD-fail"
         arduinoAcknowledged = true;
     elseif line == "SD-success"
         arduinoAcknowledged = true;
         initializedSD = true;
+    elseif line == "start instr2"
+        trajectoryStarted = true;
     elseif line == "done instr2"
-        arduinoAcknowledged = true;
+        trajectoryCompleted = true;
         disp("Trajectory has been performed");
+    elseif line == "get IMU"
+        getIMUData = true;
+    else
+         disp(line);
     end
 end

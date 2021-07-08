@@ -25,9 +25,10 @@ MATLAB:  sends "instr1" over serial, stuck in while loop until Arduino
          acknowledges instruction
 Arduino: sends "received," which allows MATLAB to break out of while loop
 Arduino/MATLAB: MATLAB sends trajectory points to Arduino, which stores
-                them on SD card. Once the entire trajectory has been
-                communicated, Arduino will automatically transition to
-                performing trajectory.
+                them on SD card. 
+Arduino: once the entire trajectory has been communicated, Arduino will
+         send "Done receiving trajectory". Arduino then transitions to
+         waiting for instruction.
 
 
 process for running trajectory using Arduino:
@@ -40,8 +41,11 @@ NOTE:    if Arduino has just received trajectory from MATLAB, it will automatica
 
 Arduino: sends "received," which allows MATLAB to break out of while loop
 Arduino: runs trajectory stored on SD card. The time it is run at, along with
-         the trajectory data performed, are sent via Serial to MATLAB
+         the trajectory data performed, are sent via Serial to MATLAB. Arduino also
+         sends "get IMU" to MATLAB, which causes MATLAB to record current IMU
+         orientation
 MATLAB:  displays trajectory data and times on user console
+Arduino: upon finishing trajectory, Arduino transitions to waiting for instruction
 
 
 

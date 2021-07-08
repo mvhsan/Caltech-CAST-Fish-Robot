@@ -154,24 +154,22 @@ void loop() {
         if (SD.exists(filename)) {
           SD.remove("test.txt");
         }
-      
+
         sdFile = SD.open(filename, FILE_WRITE);
-      
+
 //        //If file cannot be opened, display error and stop the program
 //        if (!sdFile) {
 //          Serial.println("SD-fail\n");
 //          while (1);
 //        }
-      
-        updatingSDTrajectory = true;
+
         //Serial.println("File opened successfully. Waiting for MATLAB data...");
         //Signal to MATLAB that Arduino is ready for data transfer
       }
       
       else if (MATLABmessage.equals("instr2")) {  // perform trajectory
         waitingForInstruction = false;
-        updatingSDTrajectory = false;             // if not waiting for instruction, either updating or performing trajectory
-                                                  // in this case, performing trajectory 
+        updatingSDTrajectory = false;
         trajectoryReset = true;                   // servos and SD card need to be initialized to perform trajectory
         Serial.println("received");
       }
@@ -216,6 +214,8 @@ void loop() {
         startTime = millis();
     
         trajectoryReset = false;    // next time, no need to perform initialization
+
+        Serial.println("start instr2");
       }
       
       // check if there are vector points available to read
@@ -258,6 +258,9 @@ void loop() {
           D.writeMicroseconds(downMS);
           lastUMicroseconds = upMS;
         }
+
+        Serial.println("get IMU");  //Now that trajectory point has been performed, MATLAB should get
+                                    //current fin orientation via IMU
 
         //Send data for trajectory point performed and associated times to MATLAB over Serial 
         Serial.print(millis() - initTime);  Serial.print(" ");
@@ -334,9 +337,9 @@ void recvData() {
     received = Serial.read();
 
     if (received == doneMarker) { //Done transmitting
-      updatingSDTrajectory = false;
+      waitingForInstruction = true; //trajectory has been communicated to SD card, now waiting for next instruction
       sdFile.close();               //done writing to SD card
-      Serial.println("Halting..");
+      Serial.println("Done receiving trajectory");
       return;
     }
 
