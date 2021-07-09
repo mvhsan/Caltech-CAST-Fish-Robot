@@ -95,8 +95,12 @@ char terminator = '\n'; //Char that marks end of individual message from MATLAB
 //Stores a vector as it is being received, is cleared when data has been parsed
 String receivedVector = "";
 
+// constants won't change. Used here to set a pin number:
+const int ledPin =  LED_BUILTIN;// the number of the LED pin
+
 void setup() {
-  pinMode(13, OUTPUT);
+  pinMode(ledPin, OUTPUT);
+  
   //setup from SDRunTrajectory
   
   //Serial initialization for USB
@@ -146,6 +150,7 @@ void loop() {
       MATLABmessage = Serial.readStringUntil(terminator);
       Serial.println(MATLABmessage);
       if (MATLABmessage.equals("instr1")) {  // update trajectory
+        digitalWrite(ledPin, HIGH);
         updatingSDTrajectory = true;
         waitingForInstruction = false;
         Serial.println("received");
@@ -189,6 +194,7 @@ void loop() {
         newData = false;
         writeVectorToSD();
         returnData();
+        Serial.println("ready for vector");
       }
 
     }
@@ -335,7 +341,6 @@ void recvData() {
 
   while (Serial.available() > 0 && newData == false) {
     received = Serial.read();
-
     if (received == doneMarker) { //Done transmitting
       waitingForInstruction = true; //trajectory has been communicated to SD card, now waiting for next instruction
       sdFile.close();               //done writing to SD card

@@ -16,14 +16,11 @@ disp("done importing libraries")
 
 %% Prepare trajectory data
 %Read timestep and tait-bryan angles from CSV
-datas = csvread("trajectorydata/Trajectories/Gen_0_C_1_MaxAng_25_ThkAng_25_RotAng_25_RotInt_25_SpdCde_0_Spdupv_0_Kv_0_hdev_0_freq_0.4_TB.csv");
+datas = csvread("trajectorydata/Trajectories/pitch25_roll0.csv");
 t = datas(:, 1); %timestep
 yaw_datas = datas(:, 2); %yaw angle
 pitch_datas = datas(:, 3); %pitch angle
 roll_datas = datas(:, 4); %roll angle
-
-%Initialize output vectors
-vectors = zeros(size(datas, 1), 6);
 
 start_traj_yaw     = yaw_datas(1, 1);
 start_traj_pitch   = pitch_datas(1, 1);
@@ -33,13 +30,17 @@ reset_yaw   = 90;
 reset_pitch = 0;
 reset_roll  = 0;
 
-NUM_CYCLES              = 3;    %number of times "actual" trajectory is
-                                %performed
-
 %this is the "start-up" sequence, the fin starts pointing straight "up,"
 %and gradually transitions to the first actual trajectory point
 NUM_INTERPOLATED_PTS    = 50;   %number of discrete points for start-up
 START_TIME              = 2;    %time allotted for start-up sequence in seconds
+
+NUM_CYCLES              = 3;    %number of times "actual" trajectory is
+                                %performed
+%Initialize output vectors
+num_vectors       = NUM_CYCLES * (size(datas, 1) - 1) + NUM_INTERPOLATED_PTS;
+vectors           = zeros(num_vectors, 6);
+pitch_roll_values = zeros(num_vectors, 3);
 
 %linearly interpolate between reset trajectory position and the point the 
 %actual trajectory starts at
@@ -59,13 +60,17 @@ for pointNumber = 1:NUM_INTERPOLATED_PTS
     
     %first column of vectors is desired time, pointNumber starts at 1 but
     %time should start at 0, so (pointNumber - 1) is used
-    vectors(pointNumber, 1) = (pointNumber - 1) / NUM_INTERPOLATED_PTS * START_TIME;
+    current_time            = (pointNumber - 1) / NUM_INTERPOLATED_PTS * START_TIME;
+    vectors(pointNumber, 1) = current_time;
     vectors(pointNumber, 2) = interpolated_yaw;
     vectors(pointNumber, 3) = UAngle;
     vectors(pointNumber, 4) = DAngle;
     vectors(pointNumber, 5) = LAngle;
     vectors(pointNumber, 6) = RAngle;
     
+    pitch_roll_values(pointNumber, 1) = current_time;
+    pitch_roll_values(pointNumber, 2) = interpolated_pitch;
+    pitch_roll_values(pointNumber, 3) = interpolated_roll;
 end
 
 %get number of points in actual trajectory
@@ -100,6 +105,10 @@ for cycleNumber = 1:1:NUM_CYCLES
         vectors(vector_pos, 4) = DAngle;
         vectors(vector_pos, 5) = LAngle;
         vectors(vector_pos, 6) = RAngle;
+        
+        pitch_roll_values(vector_pos, 1) = current_time;
+        pitch_roll_values(vector_pos, 2) = pitch_datas(i, 1);
+        pitch_roll_values(vector_pos, 3) = roll_datas(i, 1);
     end
 end
 
@@ -109,33 +118,38 @@ final_traj_yaw     = yaw_datas(end - 1, 1);
 final_traj_pitch   = pitch_datas(end - 1, 1);
 final_traj_roll    = roll_datas(end - 1, 1);
 
-%linearly interpolate between reset trajectory position and the point the 
-%actual trajectory ends at
-for pointNumber = 1:NUM_INTERPOLATED_PTS
-    interpolated_pitch  = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_pitch ...
-                          + (pointNumber / NUM_INTERPOLATED_PTS) * reset_pitch;
-    interpolated_roll   = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_roll ...
-                          + (pointNumber / NUM_INTERPOLATED_PTS) * reset_roll;
-    interpolated_yaw    = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_yaw ...
-                          + (pointNumber / NUM_INTERPOLATED_PTS) * reset_yaw ...
-                          + 90;     %add 90 since "zero line" is actually 90
-    
-    [UAngle, DAngle, LAngle, RAngle] = solveInverseKinematics(interpolated_pitch, interpolated_roll);
-    
-    current_time =   START_TIME + cycleNumber * t(end, 1) ...
-                   + (pointNumber - 1) / NUM_INTERPOLATED_PTS * START_TIME;
-
-    vector_pos = NUM_INTERPOLATED_PTS + (num_points - 1) * NUM_CYCLES + pointNumber;
-    vectors(vector_pos, 1)  = current_time;
-    vectors(vector_pos, 2)  = interpolated_yaw;
-    vectors(vector_pos, 3)  = UAngle;
-    vectors(vector_pos, 4)  = DAngle;
-    vectors(vector_pos, 5)  = LAngle;
-    vectors(vector_pos, 6)  = RAngle;
-
-end
+% %linearly interpolate between reset trajectory position and the point the 
+% %actual trajectory ends at
+% for pointNumber = 1:NUM_INTERPOLATED_PTS
+%     interpolated_pitch  = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_pitch ...
+%                           + (pointNumber / NUM_INTERPOLATED_PTS) * reset_pitch;
+%     interpolated_roll   = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_roll ...
+%                           + (pointNumber / NUM_INTERPOLATED_PTS) * reset_roll;
+%     interpolated_yaw    = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_yaw ...
+%                           + (pointNumber / NUM_INTERPOLATED_PTS) * reset_yaw ...
+%                           + 90;     %add 90 since "zero line" is actually 90
+%     
+%     [UAngle, DAngle, LAngle, RAngle] = solveInverseKinematics(interpolated_pitch, interpolated_roll);
+%     
+%     current_time =   START_TIME + cycleNumber * t(end, 1) ...
+%                    + (pointNumber - 1) / NUM_INTERPOLATED_PTS * START_TIME;
+% 
+%     vector_pos = NUM_INTERPOLATED_PTS + (num_points - 1) * NUM_CYCLES + pointNumber;
+%     vectors(vector_pos, 1)  = current_time;
+%     vectors(vector_pos, 2)  = interpolated_yaw;
+%     vectors(vector_pos, 3)  = UAngle;
+%     vectors(vector_pos, 4)  = DAngle;
+%     vectors(vector_pos, 5)  = LAngle;
+%     vectors(vector_pos, 6)  = RAngle;
+%     
+%     pitch_roll_values(vector_pos, 1) = current_time;
+%     pitch_roll_values(vector_pos, 2) = interpolated_pitch;
+%     pitch_roll_values(vector_pos, 3) = interpolated_roll;
+% 
+% end
 
 disp("done calculating angles");
+
 %% Open Communication With Arduino
 delete(instrfindall)            %delete any previous connections
 s = serialport('COM4', 115200); %create the serial communication
@@ -178,14 +192,17 @@ transmissionDoneChar = "!";
 vectorSizes = size(vectors);
 
 arduinoAcknowledged = false;    %reset flag
-write(s, "instr1", "string");    %tell Arduino to switch to mode where trajectory
+write(s, "instr1", "uint8");    %tell Arduino to switch to mode where trajectory
                                     %is received
-                        
+
 %wait for Arduino to acknowledge instruction                        
 while arduinoAcknowledged == false
-    pause(1)
+    pause(1);
     disp("waiting to communicate traj");
 end
+
+global readyForVector;      %flag for whether Arduino is ready for
+readyForVector = true;     %next vector
 
 %for loop : sending the datas as a string("<yaw, pitch, roll>") to Arduino
 %Arduino will be sending back vectors received, which will be displayed
@@ -198,8 +215,14 @@ for curVector = 1:1:vectorSizes(1)
     end
     vectorMessage = strip(vectorMessage,'right', vectorDelimiter); % Remove trailing delimiter
     vectorMessage = join([vectorMessage vectorEndChar], ""); % End vector character
-
+    %disp(vectorMessage)
     %send the message to arduino
+    
+    while readyForVector == false
+        pause(.01);
+    end
+
+    readyForVector = false;
     write(s, vectorMessage, "uint8");
 
 end
@@ -227,10 +250,12 @@ write(s, "instr2", "string");   %tell Arduino to switch to mode where
 %Arduino will be outputting the servo angles it is writing, and the times
 %at which they are doing so
 while arduinoAcknowledged == false
+    pause(.1)
 end
 
 %wait for Arduino to actually start running servo trajectory
 while trajectoryStarted == false
+    pause(.01)
 end
 
 trajectoryStartTime = clock;      %get time where trajectory was started
@@ -238,14 +263,19 @@ trajectoryStartTime = clock;      %get time where trajectory was started
 global getIMUData;      %flag set when IMU data should be sampled
 getIMUData = false;
 
-IMUData = zeroes(size(vectors, 1), 3);
+IMUData = zeros(size(vectors, 1), 3);
+disp(class(IMUData))
 IMUDataRow = 1;
+
+start_orientation = ez.CurrentData.YawPitchRoll;
+start_pitch = start_orientation.Y;
+start_roll  = start_orientation.Z;
 
 %wait for trajectory to be completed
 global trajectoryCompleted;
 trajectoryCompleted = false;
 while trajectoryCompleted == false
-
+    pause(.001);
     %Arduino has updated trajectory, should get new fin trajectory
     if getIMUData == true   
         getIMUData = false;     %clear flag
@@ -254,14 +284,40 @@ while trajectoryCompleted == false
         orientation = ez.CurrentData.YawPitchRoll;
 
         IMUData(IMUDataRow, 1) = timeElapsed;
-        IMUData(IMUDataRow, 2) = orientation.Y;     %pitch
-        IMUData(IMUDataRow, 3) = orientation.Z;     %roll
+        disp(timeElapsed)
+        IMUData(IMUDataRow, 2) = orientation.Y - start_pitch;     %pitch
+        IMUData(IMUDataRow, 3) = orientation.Z - start_roll;     %roll
 
         IMUDataRow = IMUDataRow + 1;
 
     end
+    
+    IMUData = IMUData(1:IMUDataRow - 1, :); %only keep nonzero IMU values
 end
 
+%% Generating plots
+
+desired_times = pitch_roll_values(:, 1);
+desired_pitch = pitch_roll_values(:, 2);
+desired_roll  = pitch_roll_values(:, 3);
+
+IMU_time      = IMUData(:, 1);
+IMU_pitch     = IMUData(:, 2);
+IMU_roll      = IMUData(:, 3);
+
+figure();
+plot(desired_times, desired_pitch);
+hold on;
+plot(IMU_time, IMU_pitch);
+legend('desired', 'actual');
+
+hold off;
+
+figure();
+plot(desired_times, desired_roll);
+hold on;
+plot(IMU_time, (-5/3) * IMU_roll);
+legend('desired', 'actual');
 %% Callback Functions
 
 %This callback function is called whenever the Arduino sends MATLAB
@@ -283,8 +339,9 @@ function RespondToArduino(serial, event)
                                 %performing trajectory on SD card
     global trajectoryCompleted; %flag for whether trajectory stored on SD
                                 %card has been performed by Arduino
+    global readyForVector;      %flag for whether Arduino is ready to
+                                %receive next trajectory vector from MATLAB
     line = readline(serial);    %get message from Arduino via serial
-    
     if line == "received" || line == "SD-fail"
         arduinoAcknowledged = true;
     elseif line == "SD-success"
@@ -297,6 +354,8 @@ function RespondToArduino(serial, event)
         disp("Trajectory has been performed");
     elseif line == "get IMU"
         getIMUData = true;
+    elseif line == "ready for vector"
+        readyForVector = true;
     else
          disp(line);
     end

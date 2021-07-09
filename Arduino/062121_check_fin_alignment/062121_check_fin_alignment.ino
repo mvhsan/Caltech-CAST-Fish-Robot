@@ -15,7 +15,6 @@
 //Servos
 Servo U, D, L, R;
 int angle = 90;
-
 int servoRelay1 = 13;
 int servoRelay2 = 12;
 int servoRelay3 = 11;
