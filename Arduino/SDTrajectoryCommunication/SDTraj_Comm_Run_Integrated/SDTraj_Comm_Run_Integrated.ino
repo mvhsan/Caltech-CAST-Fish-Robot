@@ -100,9 +100,9 @@ const int ledPin =  LED_BUILTIN;// the number of the LED pin
 
 void setup() {
   pinMode(ledPin, OUTPUT);
-  
+
   //setup from SDRunTrajectory
-  
+
   //Serial initialization for USB
   Serial.begin(115200);
   Serial.setTimeout(100);
@@ -115,7 +115,7 @@ void setup() {
   //MATLAB has outputted something, now clear Serial
   debugMsg = Serial.readStringUntil(terminator);
   Serial.println(debugMsg);
-  
+
   //Initialize SD card
   pinMode(53, OUTPUT);
 
@@ -241,9 +241,9 @@ void loop() {
           rightAngle = atof(recvChars[5]);
   
           //Convert the angle into milliseconds for the servo signal
-          upMS = (round) (upAngle / 180.0 * 1000.0 + 1520.0);
-          downMS = (round) (downAngle / 180.0 * 1000.0 + 1520.0);
-          leftMS = (round) (leftAngle / 180.0 * 1000.0 + 1520.0);
+          upMS    = (round) (upAngle / 180.0 * 1000.0 + 1520.0);
+          downMS  = (round) (downAngle / 180.0 * 1000.0 + 1520.0);
+          leftMS  = (round) (leftAngle / 180.0 * 1000.0 + 1520.0);
           rightMS = (round) (rightAngle / 180.0 * 1000.0 + 1520.0);
           
           parsed = true;

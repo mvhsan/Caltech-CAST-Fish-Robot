@@ -22,6 +22,9 @@ yaw_datas = datas(:, 2); %yaw angle
 pitch_datas = datas(:, 3); %pitch angle
 roll_datas = datas(:, 4); %roll angle
 
+pitch_datas = pitch_datas * (25 / 24.6367) * (5/3);
+roll_datas  = roll_datas  * (25 / 24.6367) * (5/3);
+
 start_traj_yaw     = yaw_datas(1, 1);
 start_traj_pitch   = pitch_datas(1, 1);
 start_traj_roll    = roll_datas(1, 1);
@@ -38,19 +41,24 @@ START_TIME              = 2;    %time allotted for start-up sequence in seconds
 NUM_CYCLES              = 3;    %number of times "actual" trajectory is
                                 %performed
 %Initialize output vectors
-num_vectors       = NUM_CYCLES * (size(datas, 1) - 1) + NUM_INTERPOLATED_PTS;
+num_vectors       = NUM_CYCLES * (size(datas, 1) - 1) + 2 * NUM_INTERPOLATED_PTS;
 vectors           = zeros(num_vectors, 6);
 pitch_roll_values = zeros(num_vectors, 3);
+
+%give IMU time to go to reset point
+[UAngle, DAngle, LAngle, RAngle] = solveInverseKinematics(reset_pitch, reset_roll);
+current_time = 0;
+
 
 %linearly interpolate between reset trajectory position and the point the 
 %actual trajectory starts at
 for pointNumber = 1:NUM_INTERPOLATED_PTS
-    interpolated_pitch  =   (pointNumber / NUM_INTERPOLATED_PTS * start_traj_pitch) ...
-                          + (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * reset_pitch;
-    interpolated_roll   =   (pointNumber / NUM_INTERPOLATED_PTS * start_traj_roll) ...
-                          + (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * reset_roll;
-    interpolated_yaw    =   (pointNumber / NUM_INTERPOLATED_PTS * start_traj_yaw) ...
-                          + (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * reset_yaw ...
+    interpolated_pitch  =   ((pointNumber - 1) / NUM_INTERPOLATED_PTS * start_traj_pitch) ...
+                          + (1 - ((pointNumber - 1) / NUM_INTERPOLATED_PTS)) * reset_pitch;
+    interpolated_roll   =   ((pointNumber - 1) / NUM_INTERPOLATED_PTS * start_traj_roll) ...
+                          + (1 - ((pointNumber - 1) / NUM_INTERPOLATED_PTS)) * reset_roll;
+    interpolated_yaw    =   ((pointNumber - 1) / NUM_INTERPOLATED_PTS * start_traj_yaw) ...
+                          + (1 - ((pointNumber - 1) / NUM_INTERPOLATED_PTS)) * reset_yaw ...
                           + 90;
     
     %solve inverse kinematics for interpolated angles
@@ -60,6 +68,8 @@ for pointNumber = 1:NUM_INTERPOLATED_PTS
     
     %first column of vectors is desired time, pointNumber starts at 1 but
     %time should start at 0, so (pointNumber - 1) is used
+    
+    vector_pos              = pointNumber;  %account for reset point
     current_time            = (pointNumber - 1) / NUM_INTERPOLATED_PTS * START_TIME;
     vectors(pointNumber, 1) = current_time;
     vectors(pointNumber, 2) = interpolated_yaw;
@@ -118,35 +128,35 @@ final_traj_yaw     = yaw_datas(end - 1, 1);
 final_traj_pitch   = pitch_datas(end - 1, 1);
 final_traj_roll    = roll_datas(end - 1, 1);
 
-% %linearly interpolate between reset trajectory position and the point the 
-% %actual trajectory ends at
-% for pointNumber = 1:NUM_INTERPOLATED_PTS
-%     interpolated_pitch  = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_pitch ...
-%                           + (pointNumber / NUM_INTERPOLATED_PTS) * reset_pitch;
-%     interpolated_roll   = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_roll ...
-%                           + (pointNumber / NUM_INTERPOLATED_PTS) * reset_roll;
-%     interpolated_yaw    = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_yaw ...
-%                           + (pointNumber / NUM_INTERPOLATED_PTS) * reset_yaw ...
-%                           + 90;     %add 90 since "zero line" is actually 90
-%     
-%     [UAngle, DAngle, LAngle, RAngle] = solveInverseKinematics(interpolated_pitch, interpolated_roll);
-%     
-%     current_time =   START_TIME + cycleNumber * t(end, 1) ...
-%                    + (pointNumber - 1) / NUM_INTERPOLATED_PTS * START_TIME;
-% 
-%     vector_pos = NUM_INTERPOLATED_PTS + (num_points - 1) * NUM_CYCLES + pointNumber;
-%     vectors(vector_pos, 1)  = current_time;
-%     vectors(vector_pos, 2)  = interpolated_yaw;
-%     vectors(vector_pos, 3)  = UAngle;
-%     vectors(vector_pos, 4)  = DAngle;
-%     vectors(vector_pos, 5)  = LAngle;
-%     vectors(vector_pos, 6)  = RAngle;
-%     
-%     pitch_roll_values(vector_pos, 1) = current_time;
-%     pitch_roll_values(vector_pos, 2) = interpolated_pitch;
-%     pitch_roll_values(vector_pos, 3) = interpolated_roll;
-% 
-% end
+%linearly interpolate between reset trajectory position and the point the 
+%actual trajectory ends at
+for pointNumber = 1:NUM_INTERPOLATED_PTS
+    interpolated_pitch  = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_pitch ...
+                          + (pointNumber / NUM_INTERPOLATED_PTS) * reset_pitch;
+    interpolated_roll   = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_roll ...
+                          + (pointNumber / NUM_INTERPOLATED_PTS) * reset_roll;
+    interpolated_yaw    = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_yaw ...
+                          + (pointNumber / NUM_INTERPOLATED_PTS) * reset_yaw ...
+                          + 90;     %add 90 since "zero line" is actually 90
+    
+    [UAngle, DAngle, LAngle, RAngle] = solveInverseKinematics(interpolated_pitch, interpolated_roll);
+    
+    current_time =   START_TIME + cycleNumber * t(end, 1) ...
+                   + (pointNumber - 1) / NUM_INTERPOLATED_PTS * START_TIME;
+
+    vector_pos = NUM_INTERPOLATED_PTS + (num_points - 1) * NUM_CYCLES + pointNumber;
+    vectors(vector_pos, 1)  = current_time;
+    vectors(vector_pos, 2)  = interpolated_yaw;
+    vectors(vector_pos, 3)  = UAngle;
+    vectors(vector_pos, 4)  = DAngle;
+    vectors(vector_pos, 5)  = LAngle;
+    vectors(vector_pos, 6)  = RAngle;
+    
+    pitch_roll_values(vector_pos, 1) = current_time;
+    pitch_roll_values(vector_pos, 2) = interpolated_pitch;
+    pitch_roll_values(vector_pos, 3) = interpolated_roll;
+
+end
 
 disp("done calculating angles");
 
@@ -267,10 +277,6 @@ IMUData = zeros(size(vectors, 1), 3);
 disp(class(IMUData))
 IMUDataRow = 1;
 
-start_orientation = ez.CurrentData.YawPitchRoll;
-start_pitch = start_orientation.Y;
-start_roll  = start_orientation.Z;
-
 %wait for trajectory to be completed
 global trajectoryCompleted;
 trajectoryCompleted = false;
@@ -285,16 +291,22 @@ while trajectoryCompleted == false
 
         IMUData(IMUDataRow, 1) = timeElapsed;
         disp(timeElapsed)
-        IMUData(IMUDataRow, 2) = orientation.Y - start_pitch;     %pitch
-        IMUData(IMUDataRow, 3) = orientation.Z - start_roll;     %roll
+        IMUData(IMUDataRow, 2) = orientation.Y;     %pitch
+        IMUData(IMUDataRow, 3) = orientation.Z;     %roll
 
         IMUDataRow = IMUDataRow + 1;
 
     end
     
     IMUData = IMUData(1:IMUDataRow - 1, :); %only keep nonzero IMU values
+    
+    %we assume that orientation starts with pitch and roll as 0, may not
+    %actually occur due to angled surfaces
+    
 end
 
+IMUData(:, 1) = IMUData(:, 1) - IMUData(1, 1);  %subtract initial pitch
+IMUData(:, 2) = IMUData(:, 2) - IMUData(1, 2);  %subtract initial roll
 %% Generating plots
 
 desired_times = pitch_roll_values(:, 1);
@@ -308,7 +320,7 @@ IMU_roll      = IMUData(:, 3);
 figure();
 plot(desired_times, desired_pitch);
 hold on;
-plot(IMU_time, IMU_pitch);
+plot(IMU_time, (25 / 24.6367) *(5/3) * IMU_pitch);
 legend('desired', 'actual');
 
 hold off;
@@ -316,8 +328,13 @@ hold off;
 figure();
 plot(desired_times, desired_roll);
 hold on;
-plot(IMU_time, (-5/3) * IMU_roll);
+plot(IMU_time, -1 * IMU_roll);
 legend('desired', 'actual');
+
+%% disconnect from IMU
+ez.Disconnect();
+disp("disconnected")
+
 %% Callback Functions
 
 %This callback function is called whenever the Arduino sends MATLAB
