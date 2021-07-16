@@ -1,7 +1,7 @@
 %The trajectory is broken up into three components: 
 %   start-up sequence  - prevents fin from jerking to starting position
 %   actual trajectory  - trajectory you actually want to run
-%   wind-down sequence - returns fin to original psoition
+%   wind-down sequence - returns fin to original position
 
 %% import libraries
 dll_location = 'C:\Users\Wind Tunnel\Desktop\fish\james surf\vnproglib\net\bin\win64\VectorNav.dll';
@@ -16,18 +16,21 @@ disp("done importing libraries")
 
 %% Prepare trajectory data
 %Read timestep and tait-bryan angles from CSV
-datas = csvread("trajectorydata/Trajectories/pitch25_roll0.csv");
+datas = csvread("trajectorydata/Trajectories/pitch15_roll0.csv");
 t = datas(:, 1); %timestep
 yaw_datas = datas(:, 2); %yaw angle
 pitch_datas = datas(:, 3); %pitch angle
 roll_datas = datas(:, 4); %roll angle
 
-pitch_datas = pitch_datas * (25 / 24.6367) * (5/3);
-roll_datas  = roll_datas  * (25 / 24.6367) * (5/3);
+angle_multiplier = 15 / 14.167;
+
+
+adjusted_pitch_datas = pitch_datas * angle_multiplier;
+adjusted_roll_datas  = roll_datas  * angle_multiplier;
 
 start_traj_yaw     = yaw_datas(1, 1);
-start_traj_pitch   = pitch_datas(1, 1);
-start_traj_roll    = roll_datas(1, 1);
+start_traj_pitch   = adjusted_pitch_datas(1, 1);
+start_traj_roll    = adjusted_roll_datas(1, 1);
 
 reset_yaw   = 90;
 reset_pitch = 0;
@@ -38,7 +41,7 @@ reset_roll  = 0;
 NUM_INTERPOLATED_PTS    = 50;   %number of discrete points for start-up
 START_TIME              = 2;    %time allotted for start-up sequence in seconds
 
-NUM_CYCLES              = 3;    %number of times "actual" trajectory is
+NUM_CYCLES              = 1;    %number of times "actual" trajectory is
                                 %performed
 %Initialize output vectors
 num_vectors       = NUM_CYCLES * (size(datas, 1) - 1) + 2 * NUM_INTERPOLATED_PTS;
@@ -109,7 +112,7 @@ for cycleNumber = 1:1:NUM_CYCLES
         vectors(vector_pos, 2) = yaw_datas(i, 1) + 90;
 
         %Solve inverse kinematics for given desired angles
-        [UAngle, DAngle, LAngle, RAngle] = solveInverseKinematics((pitch_datas(i, 1)), (roll_datas(i, 1)));
+        [UAngle, DAngle, LAngle, RAngle] = solveInverseKinematics((adjusted_pitch_datas(i, 1)), (adjusted_roll_datas(i, 1)));
 
         vectors(vector_pos, 3) = UAngle;
         vectors(vector_pos, 4) = DAngle;
@@ -125,8 +128,8 @@ end
 %get yaw, pitch and roll for the final point performed in the "actual"
 %trajectory
 final_traj_yaw     = yaw_datas(end - 1, 1);
-final_traj_pitch   = pitch_datas(end - 1, 1);
-final_traj_roll    = roll_datas(end - 1, 1);
+final_traj_pitch   = adjusted_pitch_datas(end - 1, 1);
+final_traj_roll    = adjusted_roll_datas(end - 1, 1);
 
 %linearly interpolate between reset trajectory position and the point the 
 %actual trajectory ends at
@@ -305,8 +308,8 @@ while trajectoryCompleted == false
     
 end
 
-IMUData(:, 1) = IMUData(:, 1) - IMUData(1, 1);  %subtract initial pitch
-IMUData(:, 2) = IMUData(:, 2) - IMUData(1, 2);  %subtract initial roll
+IMUData(:, 2) = IMUData(:, 2) - IMUData(1, 2);  %subtract initial pitch
+IMUData(:, 3) = IMUData(:, 3) - IMUData(1, 3);  %subtract initial roll
 %% Generating plots
 
 desired_times = pitch_roll_values(:, 1);
@@ -320,7 +323,7 @@ IMU_roll      = IMUData(:, 3);
 figure();
 plot(desired_times, desired_pitch);
 hold on;
-plot(IMU_time, (25 / 24.6367) *(5/3) * IMU_pitch);
+plot(IMU_time, IMU_pitch);
 legend('desired', 'actual');
 
 hold off;
@@ -330,6 +333,21 @@ plot(desired_times, desired_roll);
 hold on;
 plot(IMU_time, -1 * IMU_roll);
 legend('desired', 'actual');
+
+
+%% Other plots
+
+figure();
+plot(desired_times, desired_pitch);
+hold on;
+plot(IMU_time, -1 * IMU_roll);
+
+plot(desired_times, desired_roll);
+plot(IMU_time, -IMU_pitch);
+legend('desired pitch', 'actual pitch', 'desired roll', 'actual roll');
+hold off;
+
+
 
 %% disconnect from IMU
 ez.Disconnect();

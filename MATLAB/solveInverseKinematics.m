@@ -1,10 +1,10 @@
 function [USolve, DSolve, LSolve, RSolve] = solveInverseKinematics(UAngle, RAngle)
     %Lengths and variables in inches (Rough estimates)
-    baseLength = 1.64;
-    servoArmLength = 0.75;
-    linkageLength = 1.85;
-    swashPlateLength = 2.43;
-    middleHeight = 2;     
+    baseLength = 1.657;
+    servoArmLength = 0.7382;
+    linkageLength = 1.866;
+    swashPlateLength = 2.348;
+    middleHeight = 1.866;     
 
     %Solve for each angle
     USolve = solveSingleAngleInverseKinematics(UAngle);

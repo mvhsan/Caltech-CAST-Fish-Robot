@@ -1611,7 +1611,7 @@ end
 
 if savedata == 1
     %csvttleQ = strcat(['Trajectories\',solns,'_Q.csv']);
-    csvttleTB = strcat(['C:\Users\jmsch\Documents\Caltech\Research\SURF 2021\Fin Code\Caltech-CAST-Fish-Robot\MATLAB\trajectorydata\Trajectories\',solns,'_TB.csv']);
+    csvttleTB = strcat(['C:\Users\Wind Tunnel\Desktop\fish\james surf\Caltech-CAST-Fish-Robot\MATLAB\trajectorydata\Trajectories\',solns,'_TB.csv']);
     %csvwrite(csvttleQ,[teq',q])
     csvwrite(csvttleTB,[teq'/freq,TB])
 end

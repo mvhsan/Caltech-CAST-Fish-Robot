@@ -14,7 +14,8 @@
 
 //Servos
 Servo U, D, L, R;
-int angle = 90;
+int PWM = 1500;
+
 int servoRelay1 = 13;
 int servoRelay2 = 12;
 int servoRelay3 = 11;
@@ -36,9 +37,9 @@ void setup() {
 
 void loop() {
   //set servo angles, all share common angle
-  R.write(angle);
-  L.write(angle);
-  U.write(angle);
-  D.write(angle);
+  R.writeMicroseconds(PWM);
+  L.writeMicroseconds(PWM);
+  U.writeMicroseconds(PWM);
+  D.writeMicroseconds(PWM);
 
 }

@@ -233,18 +233,21 @@ void loop() {
           return;
         } else if (!parsed) {
           //Parse the character data into floats if it hasn't been parsed yet
-          timestep = atof(recvChars[0]);
-          yawAngle = atof(recvChars[1]);
-          upAngle = atof(recvChars[2]);
-          downAngle = atof(recvChars[3]);
-          leftAngle = atof(recvChars[4]);
+          timestep   = atof(recvChars[0]);
+          yawAngle   = atof(recvChars[1]);
+          upAngle    = atof(recvChars[2]);
+          downAngle  = atof(recvChars[3]);
+          leftAngle  = atof(recvChars[4]);
           rightAngle = atof(recvChars[5]);
   
           //Convert the angle into milliseconds for the servo signal
-          upMS    = (round) (upAngle / 180.0 * 1000.0 + 1520.0);
-          downMS  = (round) (downAngle / 180.0 * 1000.0 + 1520.0);
-          leftMS  = (round) (leftAngle / 180.0 * 1000.0 + 1520.0);
-          rightMS = (round) (rightAngle / 180.0 * 1000.0 + 1520.0);
+          //Angle values from MATLAB are set so that zero value corresponds to servo at 90 degrees
+          //Slope and initial value of 1500 experimentally determined
+          upMS    = (round) (upAngle    * 8.897 + 1500.0);  // servo 1
+          downMS  = (round) (downAngle  * 8.818 + 1500.0);  // servo 3
+          leftMS  = (round) (leftAngle  * 8.865 + 1500.0);  // servo 2
+          rightMS = (round) (rightAngle * 8.818 + 1500.0);  // servo 4
+
           
           parsed = true;
         }
@@ -252,6 +255,11 @@ void loop() {
   
       //If it is the correct time to run the vector, send it to the Arduino
       if (((millis() - startTime) >= timestep * 1000)) {
+        Serial.print("up: "); Serial.print(upMS);
+        Serial.print("  down: "); Serial.print(downMS);
+        Serial.print("  left: "); Serial.print(leftMS);
+        Serial.print("  right: "); Serial.print(rightMS);
+        Serial.println();
         if (leftMS != lastLMicroseconds) {
           L.writeMicroseconds(leftMS);
           R.writeMicroseconds(rightMS);
@@ -269,14 +277,14 @@ void loop() {
                                     //current fin orientation via IMU
 
         //Send data for trajectory point performed and associated times to MATLAB over Serial 
-        Serial.print(millis() - initTime);  Serial.print(" ");
-        Serial.print(millis() - startTime); Serial.print(" ");
-        Serial.print(timestep * 1000, 8);   Serial.print(" ");
-        Serial.print(upAngle);   Serial.print(" ");
-        Serial.print(downAngle); Serial.print(" ");;
-        Serial.print(leftAngle); Serial.print(" ");
-        Serial.print(rightAngle);
-        Serial.println();     //newline character is terminator character in MATLAB
+//        Serial.print(millis() - initTime);  Serial.print(" ");
+//        Serial.print(millis() - startTime); Serial.print(" ");
+//        Serial.print(timestep * 1000, 8);   Serial.print(" ");
+//        Serial.print(upAngle);   Serial.print(" ");
+//        Serial.print(downAngle); Serial.print(" ");;
+//        Serial.print(leftAngle); Serial.print(" ");
+//        Serial.print(rightAngle);
+//        Serial.println();     //newline character is terminator character in MATLAB
       
         //Mark that the next vector is ready to be received from SD
         newData = false;

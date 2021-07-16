@@ -6,7 +6,7 @@ baseLength = 1.64;
 servoArmLength = .75;
 linkageLength = 1.85;
 swashPlateLength = 2.43;
-middleHeight = 2;
+middleHeight = 1.8;
 %% 
 % Start with a blank rigid body tree model.
 robot = robotics.RigidBodyTree('DataFormat','column','MaxNumBodies',3);
