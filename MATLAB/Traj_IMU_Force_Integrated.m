@@ -3,9 +3,20 @@
 %   actual trajectory  - trajectory you actually want to run
 %   wind-down sequence - returns fin to original position
 
+%% import libraries
+dll_location = 'C:\Users\Wind Tunnel\Desktop\fish\james surf\vnproglib\net\bin\win64\VectorNav.dll';
+
+NET.addAssembly(dll_location)
+
+disp("done loading dll")
+
+import VectorNav.Sensor.*
+import VectorNav.Protocol.Uart.*
+disp("done importing libraries")
+
 %% Prepare trajectory data
 %Read timestep and tait-bryan angles from CSV
-datas = csvread("trajectorydata/Trajectories/Gen_0_C_1_MaxAng_15_ThkAng_16_RotAng_15_RotInt_15_SpdCde_0_Spdupv_0_Kv_0_hdev_0_freq_0.4_TB.csv");
+datas = csvread("trajectorydata/Trajectories/pitch15_roll0.csv");
 t = datas(:, 1); %timestep
 yaw_datas = datas(:, 2); %yaw angle
 pitch_datas = datas(:, 3); %pitch angle
@@ -152,59 +163,44 @@ end
 
 disp("done calculating angles");
 
-%% Open Communication With Servo Arduino
+
+%% Open Communication With Both Arduinos
 delete(instrfindall)            %delete any previous connections
-servo_port = serialport('COM6', 115200); %create the serial communication
+servo_port = serialport('COM4', 115200); %create the serial communication
 %set the baudrate (same as the arduino one)
 
-%configureCallback(servo_port, "terminator", @RespondToServoArduino);
+configureCallback(servo_port, "terminator", @RespondToArduino);
 configureTerminator(servo_port, "CR/LF");
 
 pause(3);   %allow some buffer time for serial communication setup
 
-%Arduino has not yet sent message that MATLAB has acknowledged
-arduinoAcknowledged = false;            
+global arduinoAcknowledged;     %Arduino has not yet sent message that
+arduinoAcknowledged = false;    %MATLAB has acknowledged
+global initializedSD;           %SD card has not yet been initialized
+initializedSD = false;
 
 %Arduino does not start until MATLAB sends message over Serial
 write(servo_port, "MATLAB ready for transmission", "string");
 
+%MATLAB code is trapped until callback function is triggered
 while arduinoAcknowledged == false
-    pause(.01);
-    if servo_port.NumBytesAvailable() > 0
-        arduinoMsg = readline(servo_port);
-        disp(arduinoMsg);
-        if contains(arduinoMsg, "SD-success")
-            arduinoAcknowledged = true;
-        elseif contains(arduinoMsg, "SD-fail")
-            disp("SD initialization failed.");
-            while true      %forces user to restart code after SD
-            end             %initialization failed
-        end
-    end    
+    pause(.5);
+    disp("waiting for SD update");
+end
+
+if initializedSD == false   %either SD-fail or SD-success was sent
+    disp("SD initialization failed.");
+    while true              % need to restart code, SD card failed
+    end
 end
 
 disp("done opening communication with servo Arduino");
 
-%% Open Communication With Force Sensor Arduino
-force_port = serialport('COM5', 115200);    %create serial communication
-configureTerminator(force_port, "CR/LF");
-
-pause(3);       %allow serial connection to set up
-
-%Arduino does not start until MATLAB sends message over Serial
-write(force_port, "MATLAB ready for transmission", "string");
-arduinoAcknowledged = false;                %reset flag
-while arduinoAcknowledged == false
-    pause(.01);
-    if force_port.NumBytesAvailable() > 0
-        arduinoMsg = readline(force_port);
-        disp(arduinoMsg);
-        if arduinoMsg == "serial start"
-            disp("connection formed with force sensor Arduino");
-            arduinoAcknowledged = true;     %set flag
-        end
-    end    
-end
+force_port = serialport('COM5', 115200); %create the serial communication
+                                         %with Arduino controlling force
+                                         %sensor
+%set the baudrate (same as the arduino one)
+disp("done connecting to force sensor Arduino");
 
 %% Communicate Trajectory to Arduino
 %transform the vector into string with starting ('<'), delimiter (','),
@@ -217,20 +213,13 @@ transmissionDoneChar = "!";
 vectorSizes = size(vectors);
 
 arduinoAcknowledged = false;    %reset flag
-write(servo_port, "instr1", "uint8");    %tell Arduino to switch to mode where trajectory
+write(s, "instr1", "uint8");    %tell Arduino to switch to mode where trajectory
                                     %is received
 
 %wait for Arduino to acknowledge instruction                        
 while arduinoAcknowledged == false
     pause(1);
     disp("waiting to communicate traj");
-    if servo_port.NumBytesAvailable() > 0
-        arduinoMsg = readline(servo_port);
-        disp(arduinoMsg);
-        if arduinoMsg == "received"
-            arduinoAcknowledged = true;
-        end
-    end    
 end
 
 global readyForVector;      %flag for whether Arduino is ready for
@@ -252,38 +241,17 @@ for curVector = 1:1:vectorSizes(1)
     
     while readyForVector == false
         pause(.01);
-        if servo_port.NumBytesAvailable() > 0
-            arduinoMsg = readline(servo_port);
-            if arduinoMsg == "ready for vector"
-                readyForVector = true;
-            else
-                disp(arduinoMsg);
-            end
-            
-        end   
     end
 
     readyForVector = false;
-    write(servo_port, vectorMessage, "uint8");
+    write(s, vectorMessage, "uint8");
 
 end
 
 %Send the done character to indicate that transmission of data is done
-write(servo_port, transmissionDoneChar, "uint8");
-
-disp("done communicating trajectory");
+write(s, transmissionDoneChar, "uint8");
 
 %% Open Communication with IMU
-
-dll_location = 'C:\Users\Wind Tunnel\Desktop\fish\james surf\vnproglib\net\bin\win64\VectorNav.dll';
-
-NET.addAssembly(dll_location)
-
-disp("done loading dll")
-
-import VectorNav.Sensor.*
-import VectorNav.Protocol.Uart.*
-disp("done importing libraries")
 
 ez = EzAsyncData.Connect('COM3', 115200);
 pause(2);
@@ -294,95 +262,62 @@ disp("done connecting to IMU")
 %IMU, store timestamp, pitch and roll in array IMUData
 arduinoAcknowledged = false;    %reset flag
 
-trajectoryStarted = false;      %set once trajectory starts
-write(servo_port, "instr2", "string");   %tell Arduino to switch to mode where
+global trajectoryStarted;       %set once trajectory starts
+trajectoryStarted = false;      %trajectory not yet started
+write(s, "instr2", "string");   %tell Arduino to switch to mode where
                                 %trajectory stored on SD card is performed
 
 %wait for Arduino to acknowledge instruction
 %Arduino will be outputting the servo angles it is writing, and the times
 %at which they are doing so
 while arduinoAcknowledged == false
-    if servo_port.NumBytesAvailable() > 0
-        arduinoMsg = readline(servo_port);
-        if arduinoMsg == "received"
-            arduinoAcknowledged = true;
-        end
-    end
+    pause(.1)
 end
 
 %wait for Arduino to actually start running servo trajectory
 while trajectoryStarted == false
-    if servo_port.NumBytesAvailable() > 0
-        arduinoMsg = readline(servo_port);
-        if arduinoMsg == "start instr2"
-            trajectoryStarted = true;
-        end
-    end
+    pause(.01)
 end
-disp("start trajectory");
+
 trajectoryStartTime = clock;      %get time where trajectory was started
 
-IMUData      = zeros(size(vectors, 1), 3);  %holds time, pitch, roll
-IMUDataRow   = 1;
-ForceData    = zeros(size(vectors, 1), 2);  %holds time and force
-ForceDataRow = 1;
+global getIMUData;      %flag set when IMU data should be sampled
+getIMUData = false;
 
-%keep running until trajectory is completed
-trajectoryCompleted = false;            %flag set when trajectory completed
+IMUData = zeros(size(vectors, 1), 3);
+disp(class(IMUData))
+IMUDataRow = 1;
+
+%wait for trajectory to be completed
+global trajectoryCompleted;
+trajectoryCompleted = false;
 while trajectoryCompleted == false
     pause(.001);
-    
-    %check for Serial data from servo Arduino
-    if servo_port.NumBytesAvailable() > 0
-        arduinoMsg = readline(servo_port);
-        if arduinoMsg == "done instr2"
-            trajectoryCompleted = true;
-        elseif arduinoMsg == "get IMU"
-            timeElapsed = etime(clock, trajectoryStartTime);  %get current time
-            orientation = ez.CurrentData.YawPitchRoll;
+    %Arduino has updated trajectory, should get new fin trajectory
+    if getIMUData == true   
+        getIMUData = false;     %clear flag
 
-            IMUData(IMUDataRow, 1) = timeElapsed;
-            IMUData(IMUDataRow, 2) = orientation.Y;     %pitch
-            IMUData(IMUDataRow, 3) = orientation.Z;     %roll
+        timeElapsed = etime(clock, trajectoryStartTime);  %get current time
+        orientation = ez.CurrentData.YawPitchRoll;
 
-            IMUDataRow = IMUDataRow + 1;    %increment row
-            
-            %get force sensor data
-            write(force_port, "get force", "string");
-        end
+        IMUData(IMUDataRow, 1) = timeElapsed;
+        disp(timeElapsed)
+        IMUData(IMUDataRow, 2) = orientation.Y;     %pitch
+        IMUData(IMUDataRow, 3) = orientation.Z;     %roll
+
+        IMUDataRow = IMUDataRow + 1;
+
     end
     
-    %check for Serial data from force sensor Arduino
-    if force_port.NumBytesAvailable() > 0
-        arduinoMsg = readline(force_port);
-        if arduinoMsg == "FORCE ERROR"
-            disp("force has exceeded threshold amount");
-            trajectoryCompleted = true;
-        else
-            force_reading = str2double(arduinoMsg);
-            timeElapsed = etime(clock, trajectoryStartTime);  %get current time
-            
-            ForceData(ForceDataRow, 1) = timeElapsed;
-            ForceData(ForceDataRow, 2) = force_reading;
-            
-            ForceDataRow = ForceDataRow + 1;    %increment row
-        end
-    end
+    IMUData = IMUData(1:IMUDataRow - 1, :); %only keep nonzero IMU values
     
+    %we assume that orientation starts with pitch and roll as 0, may not
+    %actually occur due to angled surfaces
     
 end
-
-ForceData = ForceData(1:ForceDataRow - 1, :); %trim off excess rows
-
-IMUData = IMUData(1:IMUDataRow - 1, :); %only keep nonzero IMU values
-
-%we assume that orientation starts with pitch and roll as 0, may not
-%actually occur due to angled surfaces
 
 IMUData(:, 2) = IMUData(:, 2) - IMUData(1, 2);  %subtract initial pitch
 IMUData(:, 3) = IMUData(:, 3) - IMUData(1, 3);  %subtract initial roll
-
-disp("done completing trajectory");
 %% Generating plots
 
 desired_times = pitch_roll_values(:, 1);
@@ -398,7 +333,6 @@ plot(desired_times, desired_pitch);
 hold on;
 plot(IMU_time, IMU_pitch);
 legend('desired', 'actual');
-title("pitch values")
 
 hold off;
 
@@ -407,7 +341,6 @@ plot(desired_times, desired_roll);
 hold on;
 plot(IMU_time, -1 * IMU_roll);
 legend('desired', 'actual');
-title("roll values")
 
 
 %% Other plots
@@ -436,7 +369,7 @@ disp("disconnected")
 %specific message.
 
 %must have "serial" and "event" as arguments as part of callback syntax
-function RespondToServoArduino(serial, ~)
+function RespondToArduino(serial, ~)
 
     %must be global to update variables outside callback function
     global arduinoAcknowledged; %flag for whether Arduino has acknowledged

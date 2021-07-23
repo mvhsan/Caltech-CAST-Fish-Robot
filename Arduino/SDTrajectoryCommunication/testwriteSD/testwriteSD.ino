@@ -5,13 +5,10 @@ File sdFile;
 int cur = 0;
 
 void setup() {
-    Serial.begin(250000);
+    Serial.begin(9600);
     Serial.setTimeout(100);
     
-    //Initialize SD
-    pinMode(53, OUTPUT);
-    
-    if (!SD.begin(10)) {
+    if (!SD.begin(BUILTIN_SDCARD)) {
       Serial.println("initialization failed!");
       while (1);
     }

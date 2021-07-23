@@ -59,9 +59,6 @@ boolean trajectoryReset = true;
 //Flag whether trajectory on SD card is to be reset
 boolean updatingSDTrajectory = false;
 
-//Filename to open and store to. Will need confirmation before overwriting
-String filename = "test.txt";
-
 //Characters that define vector
 boolean recvInProgress = false;
 const char startMarker = '<';
@@ -120,8 +117,10 @@ void setup() {
   Serial.println(debugMsg);
 
   //Initialize SD card
-  pinMode(53, OUTPUT);
-
+  pinMode(10, OUTPUT);
+  SPI.setMOSI(11);
+  SPI.setMISO(12);
+  SPI.setSCK(13);
   if (!SD.begin(10)) {
     Serial.println("SD-fail");
     while (1) {
@@ -129,7 +128,7 @@ void setup() {
   }
 
   //If file cannot be opened, stop program
-  sdFile = SD.open("test.txt", FILE_WRITE);
+  sdFile = SD.open("test.txt", FILE_WRITE);   //note, must specify "test.txt" string in function call instead of variable
   if (!sdFile) {
     Serial.println("SD-fail");
     while (1) {
@@ -208,10 +207,10 @@ void loop() {
       //starting to run trajectory, need to initialize servos and SD card
       if (trajectoryReset) {
         //Attach servos. Note: Pin 10 was acting strangely, and the servo was being sent false signals. Try to avoid using it in the future.
-        R.attach(9);
-        L.attach(8);
-        U.attach(6);
-        D.attach(5);
+        R.attach(20);
+        L.attach(19);
+        U.attach(18);
+        D.attach(17);
         //Open file on SD for reading
         sdFile = SD.open("test.txt", O_READ);
         
