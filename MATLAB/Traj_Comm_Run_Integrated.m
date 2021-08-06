@@ -1,18 +1,37 @@
-%The trajectory is broken up into three components: 
+%% Description
+
+% This MATLAB script integrates two microcontrollers (Teensy or Arduino)
+% a force sensor, and a VectorNav inertial measurement unit (VN-100).
+% It is also able to calculate trajectory points and corresponding servo
+% angles.
+
+% Sections:
+%  Import Libraries: 
+%    - libraries for IMU
+%  Prepare Trajectory Data:
+%    - takes in CSV of desired yaw, pitch and roll values
+%    - performs inverse kinematics to get corresponding servo angles for trajectory
+%  Open Microcontroller Communications:
+%    - connects to Teensy that controls servos
+%    - connects to Arduino that controls power relay for servos and also
+%      gets data from force sensor
+
+%% Prepare trajectory data
+% The trajectory is broken up into three components: 
 %   start-up sequence  - prevents fin from jerking to starting position
 %   actual trajectory  - trajectory you actually want to run
 %   wind-down sequence - returns fin to original position
 
-%% Prepare trajectory data
 %Read timestep and tait-bryan angles from CSV
-datas = csvread("trajectorydata/Trajectories/Gen_0_C_1_MaxAng_15_ThkAng_16_RotAng_15_RotInt_15_SpdCde_0_Spdupv_0_Kv_0_hdev_0_freq_0.4_TB.csv");
+datas = csvread("C:\Users\Wind Tunnel\Desktop\fish\james surf\trajectorydata\Trajectories\pitch15_roll0.csv");
 t = datas(:, 1); %timestep
 yaw_datas = datas(:, 2); %yaw angle
 pitch_datas = datas(:, 3); %pitch angle
 roll_datas = datas(:, 4); %roll angle
 
-angle_multiplier = 15 / 14.167;
-
+angle_multiplier = 15 / 14.167; %experimentally determined multiplier
+                                %difference between actual and desired
+                                %trajectory
 
 adjusted_pitch_datas = pitch_datas * angle_multiplier;
 adjusted_roll_datas  = roll_datas  * angle_multiplier;
@@ -20,6 +39,8 @@ adjusted_roll_datas  = roll_datas  * angle_multiplier;
 start_traj_yaw     = yaw_datas(1, 1);
 start_traj_pitch   = adjusted_pitch_datas(1, 1);
 start_traj_roll    = adjusted_roll_datas(1, 1);
+actual_start_traj_pitch  = pitch_datas(1, 1);
+actual_start_traj_roll   = roll_datas(1, 1);
 
 reset_yaw   = 90;
 reset_pitch = 0;
@@ -35,7 +56,8 @@ NUM_CYCLES              = 1;    %number of times "actual" trajectory is
 %Initialize output vectors
 num_vectors       = NUM_CYCLES * (size(datas, 1) - 1) + 2 * NUM_INTERPOLATED_PTS;
 vectors           = zeros(num_vectors, 6);
-pitch_roll_values = zeros(num_vectors, 3);
+pitch_roll_values = zeros(num_vectors, 3);  %table containing pitch and roll
+                                            %values performed by fin
 
 %give IMU time to go to reset point
 [UAngle, DAngle, LAngle, RAngle] = solveInverseKinematics(reset_pitch, reset_roll);
@@ -45,14 +67,21 @@ current_time = 0;
 %linearly interpolate between reset trajectory position and the point the 
 %actual trajectory starts at
 for pointNumber = 1:NUM_INTERPOLATED_PTS
+    %use (pointNumber - 1) so that pointNumber #1 corresponds to reset
     interpolated_pitch  =   ((pointNumber - 1) / NUM_INTERPOLATED_PTS * start_traj_pitch) ...
                           + (1 - ((pointNumber - 1) / NUM_INTERPOLATED_PTS)) * reset_pitch;
     interpolated_roll   =   ((pointNumber - 1) / NUM_INTERPOLATED_PTS * start_traj_roll) ...
                           + (1 - ((pointNumber - 1) / NUM_INTERPOLATED_PTS)) * reset_roll;
     interpolated_yaw    =   ((pointNumber - 1) / NUM_INTERPOLATED_PTS * start_traj_yaw) ...
                           + (1 - ((pointNumber - 1) / NUM_INTERPOLATED_PTS)) * reset_yaw ...
-                          + 90;
-    
+                          + 90;     %yaw is given from -90 to 90 but we
+                                    %want it from 0 to 180
+
+    actual_pitch  =   ((pointNumber - 1) / NUM_INTERPOLATED_PTS * actual_start_traj_pitch) ...
+                          + (1 - ((pointNumber - 1) / NUM_INTERPOLATED_PTS)) * reset_pitch;
+    actual_roll   =   ((pointNumber - 1) / NUM_INTERPOLATED_PTS * actual_start_traj_roll) ...
+                          + (1 - ((pointNumber - 1) / NUM_INTERPOLATED_PTS)) * reset_roll;
+
     %solve inverse kinematics for interpolated angles
     %yaw angle is directly performed using separate motor, not parallel servos
     %for fin, so inverse kinematics not needed
@@ -71,8 +100,8 @@ for pointNumber = 1:NUM_INTERPOLATED_PTS
     vectors(pointNumber, 6) = RAngle;
     
     pitch_roll_values(pointNumber, 1) = current_time;
-    pitch_roll_values(pointNumber, 2) = interpolated_pitch;
-    pitch_roll_values(pointNumber, 3) = interpolated_roll;
+    pitch_roll_values(pointNumber, 2) = actual_pitch;
+    pitch_roll_values(pointNumber, 3) = actual_roll;
 end
 
 %get number of points in actual trajectory
@@ -120,6 +149,9 @@ final_traj_yaw     = yaw_datas(end - 1, 1);
 final_traj_pitch   = adjusted_pitch_datas(end - 1, 1);
 final_traj_roll    = adjusted_roll_datas(end - 1, 1);
 
+actual_final_traj_pitch = pitch_datas(end - 1, 1);
+actual_final_traj_roll  = roll_datas(end - 1, 1);
+
 %linearly interpolate between reset trajectory position and the point the 
 %actual trajectory ends at
 for pointNumber = 1:NUM_INTERPOLATED_PTS
@@ -130,6 +162,12 @@ for pointNumber = 1:NUM_INTERPOLATED_PTS
     interpolated_yaw    = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * final_traj_yaw ...
                           + (pointNumber / NUM_INTERPOLATED_PTS) * reset_yaw ...
                           + 90;     %add 90 since "zero line" is actually 90
+                      
+    actual_pitch  = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * actual_final_traj_pitch ...
+                          + (pointNumber / NUM_INTERPOLATED_PTS) * reset_pitch;
+    actual_roll   = (1 - (pointNumber / NUM_INTERPOLATED_PTS)) * actual_final_traj_roll ...
+                          + (pointNumber / NUM_INTERPOLATED_PTS) * reset_roll;
+  
     
     [UAngle, DAngle, LAngle, RAngle] = solveInverseKinematics(interpolated_pitch, interpolated_roll);
     
@@ -145,14 +183,14 @@ for pointNumber = 1:NUM_INTERPOLATED_PTS
     vectors(vector_pos, 6)  = RAngle;
     
     pitch_roll_values(vector_pos, 1) = current_time;
-    pitch_roll_values(vector_pos, 2) = interpolated_pitch;
-    pitch_roll_values(vector_pos, 3) = interpolated_roll;
+    pitch_roll_values(vector_pos, 2) = actual_pitch;
+    pitch_roll_values(vector_pos, 3) = actual_roll;
 
 end
 
 disp("done calculating angles");
 
-%% Open Communication With Servo Arduino
+%% Open Communication With Servo Teensy
 delete(instrfindall)            %delete any previous connections
 servo_port = serialport('COM6', 115200); %create the serial communication
 %set the baudrate (same as the arduino one)
@@ -206,7 +244,7 @@ while arduinoAcknowledged == false
     end    
 end
 
-%% Communicate Trajectory to Arduino
+%% Communicate Trajectory to Servo Teensy
 %transform the vector into string with starting ('<'), delimiter (','),
 %and ending ('>') characters
 vectorStartChar = "<";
@@ -289,7 +327,7 @@ ez = EzAsyncData.Connect('COM3', 115200);
 pause(2);
 disp("done connecting to IMU")
 
-%% Run Trajectory from Arduino
+%% Run Trajectory from Servo Teensy
 %While running trajectory from Arduino, get corresponding orientation from
 %IMU, store timestamp, pitch and roll in array IMUData
 arduinoAcknowledged = false;    %reset flag
@@ -389,15 +427,15 @@ desired_times = pitch_roll_values(:, 1);
 desired_pitch = pitch_roll_values(:, 2);
 desired_roll  = pitch_roll_values(:, 3);
 
-IMU_time      = IMUData(:, 1);
-IMU_pitch     = IMUData(:, 2);
-IMU_roll      = IMUData(:, 3);
+%IMU_time      = IMUData(:, 1);
+%IMU_pitch     = IMUData(:, 2);
+%IMU_roll      = IMUData(:, 3);
 
 figure();
 plot(desired_times, desired_pitch);
 hold on;
-plot(IMU_time, IMU_pitch);
-legend('desired', 'actual');
+%plot(IMU_time, IMU_pitch);
+%legend('desired', 'actual');
 title("pitch values")
 
 hold off;
@@ -405,8 +443,8 @@ hold off;
 figure();
 plot(desired_times, desired_roll);
 hold on;
-plot(IMU_time, -1 * IMU_roll);
-legend('desired', 'actual');
+%(IMU_time, -1 * IMU_roll);
+%legend('desired', 'actual');
 title("roll values")
 
 

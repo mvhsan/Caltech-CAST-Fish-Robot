@@ -7,12 +7,10 @@
    Tyler Nguyen 2020
    tylernguyen@caltech.edu
    Reads a fin trajectory stored on an SD Card, and commands servos.
-
    Tyler Nguyen 2020
    tylernguyen@caltech.edu
    Communicates with MATLAB over Serial in order to receive trajectory coordinates on Arduino.
    Run ArduinoCode first, then run MATLAB. Will run until it has received the entire trajectory.
-
    Data comes in the form of characters sent in the following format:
    "<yaw,pitch,roll>"
       
@@ -65,8 +63,10 @@ const char startMarker = '<';
 const char delimiter = ',';
 const char endMarker = '>';
 
-//Stores the starting time in milliseconds of trajectory
+//Stores the starting time in milliseconds of trajectory, resets with each new trajectory run
 long startTime = millis();
+
+//Stores time since Arduino was initialized
 long initTime = millis();
 
 //Indices for storage of vector
@@ -137,6 +137,7 @@ void setup() {
 
   Serial.println("SD-success");
 
+  //Record time at which Arduino was initialized
   initTime = millis();
 }
 
@@ -148,11 +149,10 @@ void loop() {
     L.detach();
     U.detach();
     D.detach();
-    if (Serial.available() >= 6) {        // complete message available in Serial
-      MATLABmessage = Serial.readStringUntil(terminator);
-      Serial.println(MATLABmessage);
-      if (MATLABmessage.equals("instr1")) {  // update trajectory
-        digitalWrite(ledPin, HIGH);
+    if (Serial.available() >= 6) {            // complete message available in Serial, if we just check Serial is available it will take
+                                              // individual chars instead of entire message
+      MATLABmessage = Serial.readStringUntil(terminator); // read until newline char
+      if (MATLABmessage.equals("instr1")) {   // "instr1" is to update trajectory
         updatingSDTrajectory = true;
         waitingForInstruction = false;
         delay(.5);
@@ -164,24 +164,16 @@ void loop() {
         }
 
         sdFile = SD.open("test.txt", FILE_WRITE);
-
-//        //If file cannot be opened, display error and stop the program
-//        if (!sdFile) {
-//          Serial.println("SD-fail\n");
-//          while (1);
-//        }
-
-        //Serial.println("File opened successfully. Waiting for MATLAB data...");
-        //Signal to MATLAB that Arduino is ready for data transfer
       }
       
-      else if (MATLABmessage.equals("instr2")) {  // perform trajectory
+      else if (MATLABmessage.equals("instr2")) {  // "instr2" is to perform trajectory
         waitingForInstruction = false;
         updatingSDTrajectory = false;
         trajectoryReset = true;                   // servos and SD card need to be initialized to perform trajectory
         delay(.5);
         Serial.println("received");
       }
+      
     }
   }
 
@@ -196,9 +188,9 @@ void loop() {
       //If a full vector has been received, store it on the SD card
       if (newData) {
         newData = false;
-        writeVectorToSD();
-        returnData();
-        Serial.println("ready for vector");
+        writeVectorToSD();  // updates SD card with new vector
+        returnData();       // sends vector to MATLAB and user
+        Serial.println("ready for vector"); // tells MATLAB it is ready for next vector
       }
 
     }
@@ -207,10 +199,10 @@ void loop() {
       //starting to run trajectory, need to initialize servos and SD card
       if (trajectoryReset) {
         //Attach servos. Note: Pin 10 was acting strangely, and the servo was being sent false signals. Try to avoid using it in the future.
-        R.attach(20);
-        L.attach(19);
+        R.attach(22);
+        L.attach(20);
         U.attach(18);
-        D.attach(17);
+        D.attach(16);
         //Open file on SD for reading
         sdFile = SD.open("test.txt", O_READ);
         
@@ -220,12 +212,12 @@ void loop() {
         //Reset timestep
         timestep = 0;
     
-        //Mark the starting time on the Arduino for the trajectory to keep pace with
+        //Mark the starting time for trajectory on the Arduino for the trajectory to keep pace with
         startTime = millis();
     
         trajectoryReset = false;    // next time, no need to perform initialization
 
-        Serial.println("start instr2");
+        Serial.println("start instr2");   // tell MATLAB and user that "instr2" instruction has started
       }
       
       // check if there are vector points available to read
@@ -252,18 +244,20 @@ void loop() {
           leftMS  = (round) (leftAngle  * 8.865 + 1500.0);  // servo 2
           rightMS = (round) (rightAngle * 8.818 + 1500.0);  // servo 4
 
-          
           parsed = true;
         }
       }
   
       //If it is the correct time to run the vector, send it to the Arduino
       if (((millis() - startTime) >= timestep * 1000)) {
-        Serial.print("up: "); Serial.print(upMS);
-        Serial.print("  down: "); Serial.print(downMS);
-        Serial.print("  left: "); Serial.print(leftMS);
-        Serial.print("  right: "); Serial.print(rightMS);
-        Serial.println();
+        
+      // Uncomment this section of code to get motor PWM values being sent:
+//        Serial.print("up: "); Serial.print(upMS);
+//        Serial.print("  down: "); Serial.print(downMS);
+//        Serial.print("  left: "); Serial.print(leftMS);
+//        Serial.print("  right: "); Serial.print(rightMS);
+//        Serial.println();
+
         if (leftMS != lastLMicroseconds) {
           L.writeMicroseconds(leftMS);
           R.writeMicroseconds(rightMS);
@@ -280,7 +274,7 @@ void loop() {
         Serial.println("get IMU");  //Now that trajectory point has been performed, MATLAB should get
                                     //current fin orientation via IMU
 
-        //Send data for trajectory point performed and associated times to MATLAB over Serial 
+       // Send data for trajectory point performed and associated times to MATLAB over Serial 
 //        Serial.print(millis() - initTime);  Serial.print(" ");
 //        Serial.print(millis() - startTime); Serial.print(" ");
 //        Serial.print(timestep * 1000, 8);   Serial.print(" ");
@@ -294,7 +288,7 @@ void loop() {
         newData = false;
         parsed = false;
 
-        if (!sdFile.available()) {
+        if (!sdFile.available()) {          //no longer additional trajectory vectors in SD to perform
           Serial.println("done instr2");    //tell MATLAB trajectory is done being performed
           waitingForInstruction = true;
           sdFile.close();                   //close SD file now that we are done writing to it

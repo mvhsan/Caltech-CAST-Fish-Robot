@@ -59,27 +59,27 @@ void loop() {
   delay(100);
   reading = analogRead(0);
   Serial.println(reading);
-//  if(Serial.available() != 0){        //wait for complete message to arrive in serial
-//    MATLABmessage = Serial.readStringUntil(terminator);   //read until newline char to get to end of message
-//    Serial.println(MATLABmessage);
-//    digitalWrite(servoRelay1, !digitalRead(servoRelay1));
-//    if (MATLABmessage.equals("get force")) {
-//      reading = analogRead(0);
-//      Serial.println(reading);
-//      if (reading >= FORCE_THRESHOLD) {
-//        digitalWrite(servoRelay1, HIGH);
-//        digitalWrite(servoRelay2, HIGH);
-//        digitalWrite(servoRelay3, HIGH);
-//        digitalWrite(servoRelay4, HIGH);
-//        Serial.println("FORCE ERROR");
-//        while (1) {
-//          digitalWrite(LED_BUILTIN, HIGH);  //force was too high, shut off servos until system is reset
-//          delay(100);
-//          digitalWrite(LED_BUILTIN, LOW);
-//          delay(100);
-//        }
-//      }
-//
-//    }
-//  }
+  if(Serial.available() != 0){        //wait for complete message to arrive in serial
+    MATLABmessage = Serial.readStringUntil(terminator);   //read until newline char to get to end of message
+    Serial.println(MATLABmessage);
+    digitalWrite(servoRelay1, !digitalRead(servoRelay1));
+    if (MATLABmessage.equals("get force")) {
+      reading = analogRead(0);
+      Serial.println(reading);
+      if (reading >= FORCE_THRESHOLD) {
+        digitalWrite(servoRelay1, HIGH);
+        digitalWrite(servoRelay2, HIGH);
+        digitalWrite(servoRelay3, HIGH);
+        digitalWrite(servoRelay4, HIGH);
+        Serial.println("FORCE ERROR");
+        while (1) {
+          digitalWrite(LED_BUILTIN, HIGH);  //force was too high, shut off servos until system is reset
+          delay(100);
+          digitalWrite(LED_BUILTIN, LOW);
+          delay(100);
+        }
+      }
+
+    }
+  }
 }
