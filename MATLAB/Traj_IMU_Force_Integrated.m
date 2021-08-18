@@ -38,7 +38,7 @@
 %   wind-down sequence - returns fin to original position
 
 %Read timestep and tait-bryan angles from CSV
-datas = csvread("C:\Users\Wind Tunnel\Desktop\fish\james surf\trajectorydata\Trajectories\pitch15_roll0.csv");
+datas = csvread("C:\Users\Wind Tunnel\Desktop\fish\james surf\trajectorydata\Trajectories\Gen_0_C_1_MaxAng_15_ThkAng_15_RotAng_15_RotInt_15_SpdCde_0_Spdupv_1.3_Kv_0_hdev_1_freq_0.4_TB.csv");
 t = datas(:, 1); %timestep
 yaw_datas = datas(:, 2); %yaw angle
 pitch_datas = datas(:, 3); %pitch angle
@@ -66,7 +66,7 @@ reset_roll  = 0;
 NUM_INTERPOLATED_PTS    = 50;   %number of discrete points for start-up
 START_TIME              = 2;    %time allotted for start-up sequence in seconds
 
-NUM_CYCLES              = 1;    %number of times "actual" trajectory is
+NUM_CYCLES              = 3;    %number of times "actual" trajectory is
                                 %performed
 %Initialize output vectors
 num_vectors       = NUM_CYCLES * (size(datas, 1) - 1) + 2 * NUM_INTERPOLATED_PTS;
@@ -338,7 +338,7 @@ import VectorNav.Sensor.*
 import VectorNav.Protocol.Uart.*
 disp("done importing libraries")
 
-ez = EzAsyncData.Connect('COM3', 115200);
+ez = EzAsyncData.Connect('COM9', 115200);
 pause(2);
 disp("done connecting to IMU")
 
@@ -442,25 +442,31 @@ desired_times = pitch_roll_values(:, 1);
 desired_pitch = pitch_roll_values(:, 2);
 desired_roll  = pitch_roll_values(:, 3);
 
-%IMU_time      = IMUData(:, 1);
-%IMU_pitch     = IMUData(:, 2);
-%IMU_roll      = IMUData(:, 3);
+IMU_time      = IMUData(:, 1);
+IMU_pitch     = IMUData(:, 2);
+IMU_roll      = IMUData(:, 3);
 
 figure();
 plot(desired_times, desired_pitch);
 hold on;
-%plot(IMU_time, IMU_pitch);
-%legend('desired', 'actual');
-title("pitch values")
+plot(IMU_time, -1 * IMU_pitch);
+legend('expected', 'actual');
+title("Actual versus expected pitch values for selected trajectory")
+xlabel("Time Elapsed (seconds)");
+ylabel("Angle (degrees)");
+ylim([-20 20])
 
 hold off;
 
 figure();
 plot(desired_times, desired_roll);
 hold on;
-%(IMU_time, -1 * IMU_roll);
-%legend('desired', 'actual');
-title("roll values")
+plot(IMU_time, IMU_roll);
+legend('expected', 'actual');
+title("Actual versus expected roll values for selected trajectory")
+xlabel("Time Elapsed (seconds)");
+ylabel("Angle (degrees)");
+ylim([-20 20])
 
 
 %% Other plots

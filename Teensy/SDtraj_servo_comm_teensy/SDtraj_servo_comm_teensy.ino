@@ -1,4 +1,4 @@
-/*
+ /*
    James Chen 2021
    jameschen@caltech.edu
    Combines code for reading fin trajectory and commanding servos with code for receiving
@@ -117,12 +117,8 @@ void setup() {
   Serial.println(debugMsg);
 
   //Initialize SD card
-  pinMode(10, OUTPUT);
-  SPI.setMOSI(11);
-  SPI.setMISO(12);
-  SPI.setSCK(13);
-  if (!SD.begin(10)) {
-    Serial.println("SD-fail");
+  if (!SD.begin(BUILTIN_SDCARD)) {
+    Serial.println("SD-fail cannot initialize");
     while (1) {
     }
   }
@@ -130,7 +126,7 @@ void setup() {
   //If file cannot be opened, stop program
   sdFile = SD.open("test.txt", FILE_WRITE);   //note, must specify "test.txt" string in function call instead of variable
   if (!sdFile) {
-    Serial.println("SD-fail");
+    Serial.println("SD-fail no file");
     while (1) {
     }
   }
