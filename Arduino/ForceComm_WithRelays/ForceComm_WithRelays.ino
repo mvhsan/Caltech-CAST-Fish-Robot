@@ -56,10 +56,7 @@ void setup() {
 }
 
 void loop() {
-  delay(100);
-  reading = analogRead(0);
-  Serial.println(reading);
-  if(Serial.available() != 0){        //wait for complete message to arrive in serial
+  if(Serial.available() >= 9){        //wait for complete message to arrive in serial, "get force" has 9 chars
     MATLABmessage = Serial.readStringUntil(terminator);   //read until newline char to get to end of message
     Serial.println(MATLABmessage);
     digitalWrite(servoRelay1, !digitalRead(servoRelay1));

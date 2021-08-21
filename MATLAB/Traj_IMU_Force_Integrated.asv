@@ -469,6 +469,18 @@ ylabel("Angle (degrees)");
 ylim([-20 20])
 
 
+%% Other plots
+
+figure();
+plot(desired_times, desired_pitch);
+hold on;
+plot(IMU_time, -1 * IMU_roll);
+
+plot(desired_times, desired_roll);
+plot(IMU_time, -IMU_pitch);
+legend('desired pitch', 'actual pitch', 'desired roll', 'actual roll');
+hold off;
+
 %% disconnect from IMU
 ez.Disconnect();
 disp("disconnected")
