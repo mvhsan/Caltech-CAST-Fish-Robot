@@ -1,4 +1,4 @@
-function [USolve, DSolve, LSolve, RSolve] = solveInverseKinematics(UAngle, RAngle)
+function [USolve, DSolve, LSolve, RSolve] = solveInverseKinematics(RAngle, UAngle)
     %Lengths and variables in inches (Rough estimates)
     baseLength = 1.657;
     servoArmLength = 0.7382;
@@ -9,8 +9,8 @@ function [USolve, DSolve, LSolve, RSolve] = solveInverseKinematics(UAngle, RAngl
     %Solve for each angle
     USolve = solveSingleAngleInverseKinematics(UAngle);
     DSolve = solveSingleAngleInverseKinematics(-UAngle);
-    RSolve = solveSingleAngleInverseKinematics(RAngle);
-    LSolve = solveSingleAngleInverseKinematics(-RAngle);
+    RSolve = solveSingleAngleInverseKinematics(-RAngle);
+    LSolve = solveSingleAngleInverseKinematics(RAngle);
 
 
     function IKOutputAngle = solveSingleAngleInverseKinematics(IKInputAngle)

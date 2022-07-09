@@ -1,6 +1,7 @@
 #include <SoftwareSerial.h>
 
 #define PWMPin 2
+#define interruptPin 0
 
 float PWMMax = 910.17;
 float PWMMin = 0.0556;
@@ -25,7 +26,7 @@ float getAngle() {
 
 void setup() {
     timerStart = 0;
-    attachInterrupt(PWMPin, calcSignal, CHANGE);
+    attachInterrupt(interruptPin, calcSignal, CHANGE);
     Serial.begin(115200);
     while (!Serial.available()) {}
 }

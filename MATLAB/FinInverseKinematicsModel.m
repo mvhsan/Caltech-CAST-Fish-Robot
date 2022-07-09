@@ -277,7 +277,7 @@ iniGuess = [0.0630393136777788;0.0630400171487887;0.0630382799224363;0.063037841
 roll = 20;
 pitch = 10;
 yaw = 0;
-finOrientation.TargetOrientation = eul2quat([deg2rad(yaw) deg2rad(roll) deg2rad(pitch)]);
+finOrientation.TargetOrientation = eul2quat([deg2rad(yaw) deg2rad(pitch) deg2rad(roll)]);
 [solutions, solutionInfo] = gik(iniGuess, positionTargetLM, positionTargetLR, positionTargetUM, positionTargetUD, finOrientation, positionTargetEndEffectors);
 
 ViolationLM = solutionInfo.ConstraintViolations(1).Violation;
