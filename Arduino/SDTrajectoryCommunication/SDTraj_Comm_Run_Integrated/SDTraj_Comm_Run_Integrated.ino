@@ -34,8 +34,8 @@ File sdFile;
 const byte numChars = 16; //Max num chars to expect when reading from serial for each value
 char recvChars[6][numChars]; //Stores the servo angles received. (timestep,yaw,up,down,left,right)
 
-//Servos
-Servo U, D, L, R;
+//Servos and Central Motor ESC
+Servo U, D, L, R, C;
 
 //initialization of the different angles. Will change
 float timestep = 0;
@@ -45,10 +45,32 @@ float downAngle = 90;
 float leftAngle = 90;
 float rightAngle = 90;
 
-int upMS, downMS, leftMS, rightMS;
+int upMS, downMS, leftMS, rightMS, centralMS;
 
 int lastUMicroseconds = 0;
 int lastLMicroseconds = 0;
+
+//Pin for reading encoder PWM readings; digital pin 2 has interrupt ID 0
+int PWMPin = 2;
+int interruptPin = 0;
+
+//Variables to calculate central encoder reading from PWM pulse time
+float PWMMax = 910.17;
+float PWMMin = 0.0556;
+
+volatile unsigned long timerStart;
+volatile int lastInterruptTime;
+volatile int pulseTime;
+
+//Variables for central motor PID loop (currently just P-D loop) - TODO: tune PID constants
+float kP = 0;
+float kD = 0;
+volatile float PIDError = 0;
+volatile float PIDErrorD = 0;
+volatile float prevTime = 0;
+volatile float currentTime = 0; 
+volatile float centralAngle = 0;
+volatile float lastCentralAngle = 90;
 
 //Stores the number of times to run trajectory. 1-indexed.
 int timesToRun = 1;
@@ -137,8 +159,10 @@ void setup() {
   }
 
   Serial.println("SD-success");
-
+  
   initTime = millis();
+  timerStart = 0;
+  attachInterrupt(interruptPin, calcEncoderSignal, CHANGE);
 }
 
 void loop() {
@@ -386,4 +410,32 @@ void returnData() {
 void writeVectorToSD() {
   //Write to SD:
   sdFile.println(receivedVector);
+}
+
+void calcEncoderSignal() {
+  last_interrupt_time = micros();
+  if (digitalRead(PWMPin) == HIGH) {
+    timerStart = micros;
+  } else if (timerStart != 0) {
+    pulseTime = ((volatile int)micros() - timerStart);
+    timerStart = 0;
+  }
+}
+
+float getCentralAngle() {
+  return ((float)pulseTime - PWMMin) * (16383.0f / 16384.0f) * 360.0f / (PWMMax - PWMMin);
+}
+
+void centralPID() {
+  centralAngle = getCentralAngle();
+  PIDError = centralAngle - yawAngle;
+
+  currentTime = micros();
+  PIDErrorD = (centralAngle - lastCentralAngle) / (currentTime - prevTime);
+
+  centralMS = (round) (1000 + kP*PIDError + kD*PIDErrorD);
+  C.writeMicroseconds(centralMS);
+
+  lastCentralAngle = centralAngle;
+  prevTime = currentTime;
 }
