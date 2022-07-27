@@ -9,10 +9,10 @@ Servo U, D, L, R;
 int PWM = 1500;
 
 void setup() {
-  R.attach(22);
-  L.attach(20);
-  U.attach(18);
-  D.attach(16);
+  R.attach(9);
+  L.attach(8);
+  U.attach(6);
+  D.attach(5);
 
   U.writeMicroseconds(PWM);
   D.writeMicroseconds(PWM);

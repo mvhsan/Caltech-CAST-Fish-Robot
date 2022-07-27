@@ -14,8 +14,8 @@
 
 //Servos
 Servo U, D, L, R;
-int PWM_U = (round) (60.4 * 8.85 + 1500.0);
-int PWM_D = (round) (-60.4 * 8.85 + 1500.0);
+int PWM_U = (round) (44.8 * 8.85 + 1500.0);
+int PWM_D = (round) (-44.8 * 8.85 + 1500.0);
 int PWM_R = 1500;
 int PWM_L = 1500;
 

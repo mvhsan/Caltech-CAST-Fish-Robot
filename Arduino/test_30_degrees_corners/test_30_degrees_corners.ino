@@ -14,8 +14,8 @@
 
 //Servos
 Servo U, D, L, R;
-int PWM_high = (round) (60.4 * 8.85 + 1500.0);
-int PWM_low = (round) (-60.4 * 8.85 + 1500.0);
+int PWM_high = (round) (52.0 * 8.85 + 1500.0);
+int PWM_low = (round) (-52.0 * 8.85 + 1500.0);
 int PWM_mid = 1500;
 
 void setup() {
@@ -50,6 +50,13 @@ void setup() {
   D.writeMicroseconds(PWM_mid);
   L.writeMicroseconds(PWM_low);
   R.writeMicroseconds(PWM_high);
+
+  delay(5000);
+
+  U.writeMicroseconds(PWM_mid);
+  D.writeMicroseconds(PWM_mid);
+  L.writeMicroseconds(PWM_mid);
+  R.writeMicroseconds(PWM_mid);
 }
 
 void loop() {

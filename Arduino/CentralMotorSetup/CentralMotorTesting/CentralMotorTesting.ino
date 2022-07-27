@@ -1,7 +1,7 @@
 #include <Servo.h>
 
 const int motorPin = 3;
-const int switchPin = 8;
+const int switchPin = 7;
 const int ledPin = 13;
 
 Servo C;
