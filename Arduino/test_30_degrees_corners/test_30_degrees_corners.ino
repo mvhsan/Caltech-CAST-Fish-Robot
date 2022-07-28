@@ -14,8 +14,8 @@
 
 //Servos
 Servo U, D, L, R;
-int PWM_high = (round) (52.0 * 8.85 + 1500.0);
-int PWM_low = (round) (-52.0 * 8.85 + 1500.0);
+int PWM_high = (round) (60.4 * 5.56 + 1500.0);
+int PWM_low = (round) (-60.4 * 5.56 + 1500.0);
 int PWM_mid = 1500;
 
 void setup() {
