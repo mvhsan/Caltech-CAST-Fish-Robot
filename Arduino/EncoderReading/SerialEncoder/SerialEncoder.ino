@@ -1,11 +1,18 @@
+/*
+ * Maven Holst
+ * 07/26/21
+ * 
+ * Reads motor encoder readings periodically using asynchronous serial communication
+ */
+
 #include <SoftwareSerial.h>
 
-#define rx 0
-#define tx 1
+#define rx 19
+#define tx 18
 #define WORD_BITS (8 * sizeof(unsigned int))
 #define SIZE 5
 
-unsigned char REQUEST = 0x31;
+unsigned char REQUEST = '1';
 
 //unsigned char* bitArray = (char*)calloc(5, sizeof(unsigned char));
 
@@ -36,19 +43,21 @@ int getTurn() {
 }
 
 void getReadings() {
-    Serial.write(REQUEST);
-    while ((char)(Serial.read() & 0xFF) != REQUEST) {}
-    Serial.readBytes(bitArray, 5);
+    Serial1.write(REQUEST);
+    //while ((char)(Serial1.read() & 0xFF) != REQUEST) {}
+    while ((char)(Serial1.read()) != REQUEST) {}
+    Serial1.readBytes(bitArray, 5);
 }
 
 void setup() {
-    Serial.begin(1000000);
-    while (!Serial.available()) {}
+    Serial1.begin(1000000);
+    Serial.begin(115200);
+    //while (!Serial.available()) {}
 }
 
 void loop() {
     getReadings();
-    Serial.println("Angle (degrees): " + getAngle());
-    Serial.println("Turn count: " + getTurn());
+    Serial.println(getAngle());
+    Serial.println(getTurn());
     delay(100);
 }

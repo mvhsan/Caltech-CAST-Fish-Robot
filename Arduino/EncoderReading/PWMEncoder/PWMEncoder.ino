@@ -1,7 +1,15 @@
-#include <SoftwareSerial.h>
+/*
+ * Maven Holst
+ * 07/26/21
+ * 
+ * Reads motor encoder readings periodically using PWM
+ */
 
-#define PWMPin 2
-#define interruptPin 0
+#include <SoftwareSerial.h>
+#include <stdio.h>
+
+const int PWMPin = 2;
+//#define interruptPin 0
 
 float PWMMax = 910.17;
 float PWMMin = 0.0556;
@@ -10,10 +18,12 @@ volatile unsigned long timerStart;
 volatile int lastInterruptTime;
 volatile int pulseTime;
 
+volatile float angle = 0;
+
 void calcSignal() {
-    last_interrupt_time = micros();
+    lastInterruptTime = micros();
     if (digitalRead(PWMPin) == HIGH) {
-        timerStart = micros;
+        timerStart = micros();
     } else if (timerStart != 0) {
             pulseTime = ((volatile int)micros() - timerStart);
             timerStart = 0;
@@ -26,13 +36,15 @@ float getAngle() {
 
 void setup() {
     timerStart = 0;
-    attachInterrupt(interruptPin, calcSignal, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PWMPin), calcSignal, CHANGE);
     Serial.begin(115200);
-    while (!Serial.available()) {}
+    //while (!Serial.available()) {}
 }
 
 void loop() {
     // calcSignal();
-    Serial.println("Angle (degrees): " + getAngle());
+    //angle = getAngle();
+    //Serial.println(strcat("Angle (degrees): ", fprintf()));
+    Serial.println(getAngle());
     delay(100);
 }
