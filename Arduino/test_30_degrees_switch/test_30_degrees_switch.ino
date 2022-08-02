@@ -19,9 +19,10 @@ int lastSwitchState = 0;
 
 //Servos
 Servo U, D, L, R;
-int PWM_U = (round) (60.4 * 5.56 + 1500.0);
-int PWM_D = (round) (-60.4 * 5.56 + 1500.0);
-int PWM_mid = 1500;
+double midpoint = 1400.0;
+int PWM_U = (round) (47.1 * 5.56 + midpoint);
+int PWM_D = (round) (-47.1 * 5.56 + midpoint);
+int PWM_mid = (round) (midpoint);
 
 void setup() {
   //setup switch input
@@ -58,8 +59,8 @@ void loop() {
       Serial.println("Setting fin to midpoint");
       U.writeMicroseconds(PWM_mid);
       D.writeMicroseconds(PWM_mid);
-      L.writeMicroseconds(PWM_D);
-      R.writeMicroseconds(PWM_U);
+      L.writeMicroseconds(PWM_mid);
+      R.writeMicroseconds(PWM_mid);
     }
   }
 

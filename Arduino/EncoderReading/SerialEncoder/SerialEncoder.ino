@@ -1,6 +1,6 @@
 /*
  * Maven Holst
- * 07/26/21
+ * 07/29/21
  * 
  * Reads motor encoder readings periodically using asynchronous serial communication
  */
