@@ -50,9 +50,8 @@ int upMS, downMS, leftMS, rightMS, centralMS;
 int lastUMicroseconds = 0;
 int lastLMicroseconds = 0;
 
-//Pin for reading encoder PWM readings; digital pin 2 has interrupt ID 0
+//Pin for reading encoder PWM readings
 int PWMPin = 2;
-int interruptPin = 0;
 
 //Variables to calculate central encoder reading from PWM pulse time
 float PWMMax = 910.17;
@@ -162,7 +161,7 @@ void setup() {
   
   initTime = millis();
   timerStart = 0;
-  attachInterrupt(interruptPin, calcEncoderSignal, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(PWMPin), calcEncoderSignal, CHANGE);
 }
 
 void loop() {
@@ -413,9 +412,9 @@ void writeVectorToSD() {
 }
 
 void calcEncoderSignal() {
-  last_interrupt_time = micros();
+  lastInterruptTime = micros();
   if (digitalRead(PWMPin) == HIGH) {
-    timerStart = micros;
+    timerStart = micros();
   } else if (timerStart != 0) {
     pulseTime = ((volatile int)micros() - timerStart);
     timerStart = 0;

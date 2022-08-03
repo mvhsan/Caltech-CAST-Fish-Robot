@@ -15,6 +15,7 @@ void setup() {
     pinMode(ledPin, OUTPUT);
 
     C.attach(motorPin);
+    C.writeMicroseconds(PWMLow);
 
     Serial.begin(115200);
     //while(!Serial.available()) {}
