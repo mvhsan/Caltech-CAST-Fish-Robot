@@ -51,10 +51,10 @@ void loop() {
   if (switchState != lastSwitchState) {
     if (switchState == HIGH) {
       Serial.println("Setting fin to 30 degrees");
-      U.writeMicroseconds(PWM_mid);
-      D.writeMicroseconds(PWM_mid);
-      L.writeMicroseconds(PWM_U);
-      R.writeMicroseconds(PWM_D);
+      U.writeMicroseconds(PWM_D);
+      D.writeMicroseconds(PWM_U);
+      L.writeMicroseconds(PWM_mid);
+      R.writeMicroseconds(PWM_mid);
     } else {
       Serial.println("Setting fin to midpoint");
       U.writeMicroseconds(PWM_mid);
